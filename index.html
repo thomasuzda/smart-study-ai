@@ -2,10 +2,175 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <!-- viewport tells phones to render at real device width instead of
+       pretending to be a 980px desktop and zooming out. Without this line
+       the whole app looks tiny on mobile. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Smart Study AI</title>
+  <meta name="description" content="Turn your notes into an interactive quiz." />
+
+  <!-- Tells the browser we support both light and dark, so it themes native
+       UI (scrollbars, form controls) to match instead of forcing light. -->
+  <meta name="color-scheme" content="light dark" />
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- This tiny script runs BEFORE the page renders, on purpose. It reads the
+       saved text size and applies it immediately, so a user who picked large
+       text never sees a flash of normal-size text first. Everything else is
+       deferred to the bottom of the page. -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem("smartstudy.fontScale");
+      if (saved) document.documentElement.style.setProperty("--font-scale", saved);
+    })();
+  </script>
 </head>
+
 <body>
-  <h1>Smart Study AI</h1>
-  <p>Your interactive quiz app is coming soon.</p>
+  <!-- ======================================================================
+       TOP MENU
+       Four items, no submenus. `data-screen` is how each button knows which
+       section to show — js/ui.js reads it. Using a data attribute instead of
+       hardcoding it in JS means adding a screen is an HTML-only change.
+       ====================================================================== -->
+  <header class="menu">
+    <span class="menu__brand">Smart Study AI</span>
+
+    <button class="menu__item" type="button" data-screen="home">Home</button>
+    <button class="menu__item" type="button" data-screen="files">My Files</button>
+
+    <!-- Text size control. aria-label gives screen readers a real description,
+         since "A−" alone doesn't say what it does. -->
+    <div class="menu__sizer" role="group" aria-label="Text size">
+      <button type="button" id="text-smaller" aria-label="Make text smaller">A&minus;</button>
+      <button type="button" id="text-larger" aria-label="Make text larger">A+</button>
+    </div>
+
+    <button class="menu__item" type="button" data-screen="account">Account</button>
+  </header>
+
+  <!-- ======================================================================
+       SCREEN 1 — HOME
+       The centered hero you picked: title, one line of explanation, one big
+       button. Nothing else, so there's no question what to do first.
+       ====================================================================== -->
+  <main>
+    <section class="screen screen--centered" id="screen-home">
+      <h1>Smart Study AI</h1>
+      <p class="subtitle">
+        Turn your notes into a quiz that actually asks you questions.
+      </p>
+      <button class="btn btn--primary btn--large" type="button" id="start-quiz">
+        Start Quiz
+      </button>
+      <p class="text-muted" style="margin-top: 1.5rem">
+        Sample quiz &middot; 10 questions
+      </p>
+    </section>
+
+    <!-- ====================================================================
+         SCREEN 2 — QUIZ
+         Built empty. js/quiz.js fills the question and answers in as you go,
+         one question at a time.
+         ==================================================================== -->
+    <section class="screen" id="screen-quiz" hidden>
+      <!-- The progress track. aria-* attributes let a screen reader announce
+           "3 of 10" — the visual bar alone conveys nothing to them. -->
+      <div
+        class="progress"
+        role="progressbar"
+        aria-label="Quiz progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+        id="progress"
+      >
+        <div class="progress__fill" id="progress-fill"></div>
+      </div>
+
+      <div class="quiz__meta">
+        <span id="question-counter">Question 1 of 10</span>
+        <span id="score-so-far">0 correct</span>
+      </div>
+
+      <!-- aria-live="polite" makes screen readers read the new question when
+           it changes, without interrupting whatever they're currently saying. -->
+      <h2 class="quiz__question" id="question-text" aria-live="polite"></h2>
+
+      <ul class="answers" id="answers"></ul>
+
+      <!-- The explanation panel. Hidden until an answer is picked. -->
+      <div class="feedback" id="feedback" hidden>
+        <p class="feedback__verdict" id="feedback-verdict"></p>
+        <p class="feedback__explanation" id="feedback-explanation"></p>
+      </div>
+
+      <div class="quiz__actions">
+        <button class="btn btn--primary" type="button" id="next-question" hidden>
+          Next
+        </button>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SCREEN 3 — RESULTS
+         Score, then a full review of every question so a wrong answer is a
+         chance to learn rather than just a lost point.
+         ==================================================================== -->
+    <section class="screen screen--centered" id="screen-results" hidden>
+      <p class="score" id="final-score">0/10</p>
+      <h2 id="results-headline">Nice work</h2>
+      <p class="subtitle" id="results-detail"></p>
+
+      <div class="results__actions">
+        <button class="btn btn--primary" type="button" id="retry-quiz">Try Again</button>
+        <button class="btn btn--secondary" type="button" id="results-home">Home</button>
+      </div>
+
+      <div class="review" id="review"></div>
+    </section>
+
+    <!-- ====================================================================
+         SCREEN 4 — MY FILES  (placeholder until Phase 2)
+         ==================================================================== -->
+    <section class="screen" id="screen-files" hidden>
+      <h2>My Files</h2>
+      <p class="subtitle" style="margin-bottom: 2rem">
+        Your saved quizzes will live here.
+      </p>
+      <div class="card">
+        <h3>Nothing saved yet</h3>
+        <p class="text-muted">
+          Saving quizzes needs an account, which is the next thing being built.
+          For now the sample quiz on the home screen works without signing in.
+        </p>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SCREEN 5 — ACCOUNT  (placeholder until Phase 2)
+         ==================================================================== -->
+    <section class="screen" id="screen-account" hidden>
+      <h2>Account</h2>
+      <p class="subtitle" style="margin-bottom: 2rem">
+        Sign in to keep your quizzes on every device.
+      </p>
+      <div class="card">
+        <h3>Not built yet</h3>
+        <p class="text-muted">
+          Sign up and log in are coming in the next phase. Your text size
+          preference is already saved in this browser.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Scripts load at the end of the body so the HTML above already exists by
+       the time they run — otherwise document.getElementById would find
+       nothing. Load order matters: sample data, then engine, then UI. -->
+  <script src="js/sample-quiz.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/ui.js"></script>
 </body>
 </html>

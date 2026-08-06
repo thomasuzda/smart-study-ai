@@ -1,0 +1,647 @@
+/* ==========================================================================
+   Smart Study AI — design system
+   --------------------------------------------------------------------------
+   Everything visual lives here. The idea is "Apple simple": one accent color,
+   a lot of whitespace, and very few elements competing for attention.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. DESIGN TOKENS
+   These are CSS custom properties ("variables"). Defining a color once here
+   and referring to it everywhere else means changing the whole app's look is
+   a one-line edit instead of a find-and-replace.
+   -------------------------------------------------------------------------- */
+:root {
+  /* The system font stack. On a Mac/iPhone this resolves to San Francisco,
+     Apple's own typeface — which is why the app feels native without us
+     shipping any font files. */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    Helvetica, Arial, sans-serif;
+
+  /* Surfaces and text */
+  --bg: #fbfbfd;          /* page background — very slightly warm, not pure white */
+  --surface: #ffffff;     /* cards sitting on top of the background */
+  --surface-alt: #f5f5f7; /* subtly recessed areas */
+  --text: #1d1d1f;        /* near-black; true #000 looks harsh on screens */
+  --text-muted: #6e6e73;  /* secondary text — labels, hints, captions */
+  --border: #d2d2d7;
+
+  /* The single accent color. Every interactive/primary element uses this and
+     nothing else uses it, which is what makes buttons obviously clickable. */
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --accent-soft: rgba(0, 113, 227, 0.1); /* translucent tint for selections */
+
+  /* Feedback colors, only for right/wrong answers */
+  --correct: #34c759;
+  --correct-soft: rgba(52, 199, 89, 0.12);
+  --wrong: #ff3b30;
+  --wrong-soft: rgba(255, 59, 48, 0.12);
+
+  /* Shape */
+  --radius-card: 18px;
+  --radius-input: 12px;
+  --radius-pill: 980px; /* any radius larger than half the height = a full pill */
+
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+  /* One easing curve for every animation, so motion feels consistent.
+     This curve starts fast and settles gently — the iOS feel. */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* The text-size control multiplies this. Every font-size in the file is
+     calc(<size> * var(--font-scale)), so one number resizes the whole app. */
+  --font-scale: 1;
+
+  --header-height: 56px;
+  --content-width: 980px;
+}
+
+/* Dark mode. prefers-color-scheme reads the setting from macOS/iOS/Windows,
+   so the app follows the user's system preference with no toggle needed.
+   We only override the colors — every size, radius and animation stays. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --surface-alt: #2c2c2e;
+    --text: #f5f5f7;
+    --text-muted: #98989d;
+    --border: #38383a;
+    --accent: #0a84ff;
+    --accent-hover: #409cff;
+    --accent-soft: rgba(10, 132, 255, 0.16);
+    --correct: #30d158;
+    --correct-soft: rgba(48, 209, 88, 0.16);
+    --wrong: #ff453a;
+    --wrong-soft: rgba(255, 69, 58, 0.16);
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. RESET / BASE
+   Browsers ship their own default margins and font sizes that differ between
+   them. Zeroing them out means our layout looks the same everywhere.
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* padding counts INSIDE an element's width, which
+                             makes sizing far more predictable */
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%; /* stop iOS Safari auto-inflating text */
+}
+
+body {
+  font-family: var(--font);
+  font-size: calc(1rem * var(--font-scale));
+  line-height: 1.5;
+  color: var(--text);
+  background-color: var(--bg);
+  min-height: 100vh;
+  /* Smooths font rendering on macOS so text doesn't look overly bold */
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+/* Respect users who've asked their OS to reduce motion (vestibular disorders,
+   motion sensitivity). Accessibility, and it costs us two lines. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. TOP MENU
+   Like Word's ribbon but stripped to four items. Sticky so it's always
+   reachable; translucent + blurred so content scrolling under it stays
+   visible, which is a signature Apple treatment.
+   -------------------------------------------------------------------------- */
+.menu {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+
+  /* color-mix lets us take our own --surface variable and make it 72%
+     opaque, so it still adapts to dark mode instead of being hardcoded. */
+  background-color: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.menu__brand {
+  font-size: calc(1rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: auto; /* pushes everything after it to the right side */
+  white-space: nowrap;
+}
+
+.menu__item {
+  /* Reset the browser's ugly default button styling */
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: calc(0.875rem * var(--font-scale));
+  color: var(--text-muted);
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+  white-space: nowrap;
+}
+
+.menu__item:hover {
+  color: var(--text);
+  background-color: var(--surface-alt);
+}
+
+/* aria-current is set by JS on the active screen's menu item. Styling the
+   ARIA attribute rather than a CSS class means the visual state and the
+   screen-reader state can never drift apart. */
+.menu__item[aria-current="page"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* The A− / A+ text size cluster */
+.menu__sizer {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  margin: 0 0.25rem;
+}
+
+.menu__sizer button {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  width: 30px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  transition: background-color 0.2s var(--ease);
+}
+
+.menu__sizer button:hover {
+  background-color: var(--surface);
+}
+
+/* Disabled at the min/max end of the scale */
+.menu__sizer button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.menu__sizer button:first-child { font-size: 0.75rem; }
+.menu__sizer button:last-child  { font-size: 1.05rem; }
+
+/* --------------------------------------------------------------------------
+   4. SCREENS
+   The whole app is one HTML page. Each "screen" is a <section> and JS shows
+   exactly one at a time by toggling the hidden attribute. No page reloads,
+   no router library.
+   -------------------------------------------------------------------------- */
+.screen {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+  animation: screen-in 0.35s var(--ease);
+}
+
+/* [hidden] normally works on its own, but .screen sets display, which would
+   override it. !important guarantees hiding always wins. */
+.screen[hidden] {
+  display: none !important;
+}
+
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* A screen whose content should sit centered in the viewport (the home hero
+   and the results screen). Flexbox centering on both axes. */
+.screen--centered {
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: 1.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. TYPOGRAPHY
+   Tight negative letter-spacing on large text is the strongest single trick
+   for making headings look designed rather than default.
+   -------------------------------------------------------------------------- */
+h1 {
+  font-size: calc(3rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  margin-bottom: 0.75rem;
+}
+
+h2 {
+  font-size: calc(1.75rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+h3 {
+  font-size: calc(1.125rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.375rem;
+}
+
+.subtitle {
+  font-size: calc(1.1875rem * var(--font-scale));
+  color: var(--text-muted);
+  max-width: 34ch; /* ch = width of a "0". Capping line length around 34-70
+                      characters is the single biggest readability win. */
+  margin: 0 auto 2.5rem;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: calc(0.875rem * var(--font-scale));
+}
+
+/* --------------------------------------------------------------------------
+   6. BUTTONS
+   Big, bold, fully rounded. The pill shape plus a solid accent fill makes it
+   unmistakable that these are tappable.
+   -------------------------------------------------------------------------- */
+.btn {
+  appearance: none;
+  border: none;
+  font-family: inherit;
+  font-size: calc(1.0625rem * var(--font-scale));
+  font-weight: 600;
+  padding: 1rem 2.5rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background-color 0.25s var(--ease), transform 0.15s var(--ease),
+    box-shadow 0.25s var(--ease), opacity 0.25s var(--ease);
+  /* Stops a double-tap on mobile from zooming the page instead of clicking */
+  touch-action: manipulation;
+}
+
+.btn--primary {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background-color: var(--accent-hover);
+  box-shadow: 0 4px 16px var(--accent-soft);
+}
+
+.btn--secondary {
+  background-color: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.btn--secondary:hover {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* :active fires while the mouse/finger is held down. Shrinking slightly gives
+   the button a physical "press" feel. */
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Keyboard focus ring. :focus-visible shows it for keyboard users but NOT for
+   mouse clicks — so keyboard navigation stays usable without adding visual
+   noise for everyone else. */
+.btn:focus-visible,
+.menu__item:focus-visible,
+.answer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.btn--large {
+  font-size: calc(1.1875rem * var(--font-scale));
+  padding: 1.125rem 3rem;
+}
+
+/* --------------------------------------------------------------------------
+   7. QUIZ SCREEN
+   -------------------------------------------------------------------------- */
+
+/* Progress bar — a wrapper track with an inner fill whose width JS animates */
+.progress {
+  height: 6px;
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  overflow: hidden; /* keeps the fill's corners inside the rounded track */
+  margin-bottom: 0.75rem;
+}
+
+.progress__fill {
+  height: 100%;
+  width: 0%;
+  background-color: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width 0.4s var(--ease);
+}
+
+.quiz__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 2.5rem;
+  font-size: calc(0.875rem * var(--font-scale));
+  color: var(--text-muted);
+}
+
+.quiz__question {
+  font-size: calc(1.875rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-bottom: 2rem;
+  /* Long words / URLs in pasted material shouldn't overflow the screen */
+  overflow-wrap: break-word;
+}
+
+/* Stacked answer list — one full-width button per row, as you chose */
+.answers {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.answer {
+  /* Full-width tappable row */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-align: left;
+  appearance: none;
+  font-family: inherit;
+  font-size: calc(1.0625rem * var(--font-scale));
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.125rem 1.25rem;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease),
+    transform 0.15s var(--ease);
+  touch-action: manipulation;
+}
+
+.answer:hover:not(:disabled) {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.answer:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+/* The A/B/C/D circle at the left of each answer */
+.answer__letter {
+  flex-shrink: 0; /* never let the circle squash when text is long */
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.answer__text {
+  flex: 1; /* take all remaining width */
+  overflow-wrap: break-word;
+  min-width: 0; /* lets flex children actually shrink so text can wrap */
+}
+
+/* After answering, JS adds .is-correct / .is-wrong and disables the buttons */
+.answer:disabled {
+  cursor: default;
+}
+
+.answer.is-correct {
+  border-color: var(--correct);
+  background-color: var(--correct-soft);
+}
+
+.answer.is-correct .answer__letter {
+  background-color: var(--correct);
+  color: #fff;
+}
+
+.answer.is-wrong {
+  border-color: var(--wrong);
+  background-color: var(--wrong-soft);
+}
+
+.answer.is-wrong .answer__letter {
+  background-color: var(--wrong);
+  color: #fff;
+}
+
+/* Answers that were neither picked nor correct fade back so the eye goes
+   straight to the two that matter */
+.answer.is-muted {
+  opacity: 0.45;
+}
+
+/* The explanation panel that slides in after answering */
+.feedback {
+  border-radius: var(--radius-card);
+  padding: 1.125rem 1.25rem;
+  margin-bottom: 2rem;
+  background-color: var(--surface-alt);
+  animation: feedback-in 0.3s var(--ease);
+}
+
+@keyframes feedback-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.feedback__verdict {
+  font-weight: 600;
+  font-size: calc(1rem * var(--font-scale));
+  margin-bottom: 0.25rem;
+}
+
+.feedback--correct .feedback__verdict { color: var(--correct); }
+.feedback--wrong   .feedback__verdict { color: var(--wrong); }
+
+.feedback__explanation {
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+/* Right-aligned Next / See results button */
+.quiz__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --------------------------------------------------------------------------
+   8. RESULTS SCREEN
+   -------------------------------------------------------------------------- */
+.score {
+  font-size: calc(4.5rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+
+.results__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+/* Per-question review list */
+.review {
+  width: 100%;
+  text-align: left;
+  margin-top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.review__item {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.125rem 1.25rem;
+  /* A colored left edge gives an at-a-glance right/wrong scan without
+     needing to read anything */
+  border-left: 4px solid var(--border);
+}
+
+.review__item--correct { border-left-color: var(--correct); }
+.review__item--wrong   { border-left-color: var(--wrong); }
+
+.review__question {
+  font-weight: 600;
+  font-size: calc(1rem * var(--font-scale));
+  margin-bottom: 0.5rem;
+  overflow-wrap: break-word;
+}
+
+.review__line {
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--text-muted);
+  overflow-wrap: break-word;
+}
+
+.review__line strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   9. PLACEHOLDER CARDS
+   Used by the My Files / Account screens until Phase 2 builds them for real.
+   -------------------------------------------------------------------------- */
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+/* --------------------------------------------------------------------------
+   10. RESPONSIVE
+   Only two breakpoints. Everything above scales fluidly because it's built
+   from flexbox and relative units rather than fixed pixel widths.
+   -------------------------------------------------------------------------- */
+@media (max-width: 700px) {
+  .screen {
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  h1 { font-size: calc(2.25rem * var(--font-scale)); }
+
+  .quiz__question { font-size: calc(1.5rem * var(--font-scale)); }
+
+  .score { font-size: calc(3.5rem * var(--font-scale)); }
+
+  .subtitle { font-size: calc(1.0625rem * var(--font-scale)); }
+
+  /* Full-width buttons are much easier to hit with a thumb */
+  .btn--large,
+  .results__actions .btn {
+    width: 100%;
+  }
+
+  .quiz__actions .btn { width: 100%; }
+}
+
+@media (max-width: 600px) {
+  .menu {
+    padding: 0 0.875rem;
+    gap: 0;
+  }
+
+  .menu__brand {
+    /* Hide the "Smart Study AI" wordmark so the four controls always fit */
+    font-size: calc(0.9375rem * var(--font-scale));
+  }
+
+  .menu__item {
+    padding: 0.5rem 0.625rem;
+    font-size: calc(0.8125rem * var(--font-scale));
+  }
+}
