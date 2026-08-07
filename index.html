@@ -50,22 +50,122 @@
     <button class="menu__item" type="button" data-screen="account">Account</button>
   </header>
 
+  <!-- Shown only while browsing as a guest, so "nothing was saved" is never
+       a surprise discovered later. js/ui.js toggles it. -->
+  <div class="guest-banner" id="guest-banner" hidden>
+    <span>You're using Smart Study AI as a guest &mdash; your quizzes won't be saved.</span>
+    <button class="link-button" type="button" id="banner-create-account">
+      Create a free account
+    </button>
+  </div>
+
   <!-- ======================================================================
        SCREEN 1 — HOME
-       The centered hero you picked: title, one line of explanation, one big
-       button. Nothing else, so there's no question what to do first.
+       Two different versions of this screen exist, and JS shows whichever
+       fits: a "who are you?" version before a choice is made, and the normal
+       start-a-quiz version afterwards. Same screen, so the app never feels
+       like it's bouncing the user between pages.
        ====================================================================== -->
   <main>
     <section class="screen screen--centered" id="screen-home">
       <h1>Smart Study AI</h1>
-      <p class="subtitle">
+      <p class="subtitle" id="home-subtitle">
         Turn your notes into a quiz that actually asks you questions.
       </p>
-      <button class="btn btn--primary btn--large" type="button" id="start-quiz">
-        Start Quiz
-      </button>
-      <p class="text-muted" style="margin-top: 1.5rem">
-        Sample quiz &middot; 10 questions
+
+      <!-- (a) Before choosing: create an account, log in, or stay a guest -->
+      <div id="home-welcome">
+        <div class="auth-choices">
+          <button class="btn btn--primary btn--large" type="button" id="go-signup">
+            Create Account
+          </button>
+          <button class="btn btn--secondary btn--large" type="button" id="go-login">
+            Log In
+          </button>
+          <button class="link-button" type="button" id="go-guest">
+            Continue as guest
+          </button>
+        </div>
+        <p class="auth-note">
+          An account keeps your quizzes on every device. As a guest everything
+          works, but nothing is saved once you close the tab.
+        </p>
+      </div>
+
+      <!-- (b) After choosing: get on with it -->
+      <div id="home-start" hidden>
+        <button class="btn btn--primary btn--large" type="button" id="start-quiz">
+          Start Quiz
+        </button>
+        <p class="text-muted" style="margin-top: 1.5rem">
+          Sample quiz &middot; 10 questions
+        </p>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         SCREEN 2 — LOG IN / CREATE ACCOUNT
+         One screen, two modes. JS swaps the heading and button text rather
+         than duplicating a nearly identical second screen — half the markup
+         and no risk of the two drifting apart.
+         ==================================================================== -->
+    <section class="screen screen--centered" id="screen-auth" hidden>
+      <h2 id="auth-title">Log In</h2>
+      <p class="subtitle" id="auth-subtitle" style="margin-bottom: 2rem">
+        Welcome back.
+      </p>
+
+      <!-- A real <form> so Enter submits and password managers offer to fill
+           and save credentials, which they won't for loose <input>s. -->
+      <form class="auth-form" id="auth-form" novalidate>
+        <div class="field">
+          <label for="auth-email">Email</label>
+          <input
+            type="email"
+            id="auth-email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="auth-password">Password</label>
+          <!-- autocomplete tells the password manager whether to offer an
+               existing password or suggest a new one. JS switches it. -->
+          <input
+            type="password"
+            id="auth-password"
+            name="password"
+            placeholder="At least 6 characters"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <!-- role="alert" makes screen readers announce errors immediately
+             rather than leaving them silently on screen. -->
+        <p class="auth-message" id="auth-message" role="alert" hidden></p>
+
+        <button class="btn btn--primary" type="submit" id="auth-submit">
+          Log In
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        <span id="auth-switch-text">Don't have an account?</span>
+        <button class="link-button" type="button" id="auth-switch-btn">Create one</button>
+      </p>
+
+      <p class="auth-switch">
+        <button class="link-button" type="button" id="auth-forgot">Forgot password?</button>
+      </p>
+
+      <p class="auth-switch" style="margin-top: 1rem">
+        <button class="link-button" type="button" id="auth-guest">
+          Skip &mdash; use as guest
+        </button>
       </p>
     </section>
 
@@ -137,38 +237,72 @@
     <section class="screen" id="screen-files" hidden>
       <h2>My Files</h2>
       <p class="subtitle" style="margin-bottom: 2rem">
-        Your saved quizzes will live here.
+        Your saved quizzes live here.
       </p>
-      <div class="card">
-        <h3>Nothing saved yet</h3>
+
+      <!-- What this screen says depends on who you are, so there are two
+           versions and JS picks one. -->
+      <div class="card" id="files-guest" hidden>
+        <h3>Nothing is being saved</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem">
+          You're using the app as a guest. Quizzes you take work normally, but
+          they disappear when you close the tab. An account is free and keeps
+          them on every device you use.
+        </p>
+        <button class="btn btn--primary" type="button" id="files-create-account">
+          Create Account
+        </button>
+      </div>
+
+      <div class="card" id="files-empty" hidden>
+        <h3>No quizzes yet</h3>
         <p class="text-muted">
-          Saving quizzes needs an account, which is the next thing being built.
-          For now the sample quiz on the home screen works without signing in.
+          Once you make a quiz it'll show up here, ready to retake any time.
         </p>
       </div>
     </section>
 
     <!-- ====================================================================
-         SCREEN 5 — ACCOUNT  (placeholder until Phase 2)
+         SCREEN 5 — ACCOUNT
          ==================================================================== -->
     <section class="screen" id="screen-account" hidden>
       <h2>Account</h2>
-      <p class="subtitle" style="margin-bottom: 2rem">
-        Sign in to keep your quizzes on every device.
+      <p class="subtitle" style="margin-bottom: 2rem" id="account-subtitle">
+        Manage how you're signed in.
       </p>
-      <div class="card">
-        <h3>Not built yet</h3>
-        <p class="text-muted">
-          Sign up and log in are coming in the next phase. Your text size
-          preference is already saved in this browser.
+
+      <!-- Signed in -->
+      <div class="card" id="account-signed-in" hidden>
+        <h3>Signed in</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem" id="account-email"></p>
+        <button class="btn btn--secondary" type="button" id="account-signout">Log Out</button>
+      </div>
+
+      <!-- Guest -->
+      <div class="card" id="account-guest" hidden>
+        <h3>Browsing as a guest</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem">
+          Nothing you do is being saved. Create a free account to keep your
+          quizzes, or log in if you already have one.
         </p>
+        <div class="auth-choices">
+          <button class="btn btn--primary" type="button" id="account-create">Create Account</button>
+          <button class="btn btn--secondary" type="button" id="account-login">Log In</button>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- Scripts load at the end of the body so the HTML above already exists by
-       the time they run — otherwise document.getElementById would find
-       nothing. Load order matters: sample data, then engine, then UI. -->
+  <!-- The Supabase library provides the login system and database client.
+       Loaded from a CDN so there's nothing to install or build. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Our own scripts load at the end of the body so the HTML above already
+       exists by the time they run — otherwise getElementById finds nothing.
+       Order matters: settings, then auth, then data, then engine, then UI
+       (which wires everything together and must go last). -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/sample-quiz.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/ui.js"></script>

@@ -17,6 +17,7 @@
      ------------------------------------------------------------------------ */
   const SCREENS = {
     home: "screen-home",
+    auth: "screen-auth",
     quiz: "screen-quiz",
     results: "screen-results",
     files: "screen-files",
@@ -166,11 +167,221 @@
   });
 
   /* ------------------------------------------------------------------------
+     LOG IN / CREATE ACCOUNT
+     One screen serving two modes. `authMode` decides which.
+     ------------------------------------------------------------------------ */
+  let authMode = "login"; // "login" or "signup"
+
+  const authForm = document.getElementById("auth-form");
+  const authEmail = document.getElementById("auth-email");
+  const authPassword = document.getElementById("auth-password");
+  const authSubmit = document.getElementById("auth-submit");
+  const authMessage = document.getElementById("auth-message");
+
+  /** Show a message under the form. `kind` is "error", "success", or "info". */
+  function setAuthMessage(text, kind) {
+    if (!text) {
+      authMessage.hidden = true;
+      return;
+    }
+    authMessage.textContent = text; // textContent, so a server message can
+                                    // never inject markup into our page
+    authMessage.className = "auth-message auth-message--" + (kind || "error");
+    authMessage.hidden = false;
+  }
+
+  /** Switch the auth screen between logging in and signing up. */
+  function setAuthMode(mode) {
+    authMode = mode;
+    const isSignup = mode === "signup";
+
+    document.getElementById("auth-title").textContent = isSignup
+      ? "Create Account"
+      : "Log In";
+    document.getElementById("auth-subtitle").textContent = isSignup
+      ? "Free, and your quizzes follow you everywhere."
+      : "Welcome back.";
+    authSubmit.textContent = isSignup ? "Create Account" : "Log In";
+    document.getElementById("auth-switch-text").textContent = isSignup
+      ? "Already have an account?"
+      : "Don't have an account?";
+    document.getElementById("auth-switch-btn").textContent = isSignup
+      ? "Log in"
+      : "Create one";
+
+    // Tell the browser's password manager which job this is, so it offers to
+    // suggest a strong new password rather than autofilling an old one.
+    authPassword.setAttribute(
+      "autocomplete",
+      isSignup ? "new-password" : "current-password"
+    );
+
+    // "Forgot password" only makes sense when logging in.
+    document.getElementById("auth-forgot").hidden = isSignup;
+
+    setAuthMessage(null);
+  }
+
+  /** Open the auth screen in a given mode. */
+  function openAuth(mode) {
+    setAuthMode(mode);
+
+    // If the app hasn't been connected to its database yet, say so up front
+    // rather than letting someone fill in a form that cannot possibly work.
+    if (!Auth.isConfigured()) {
+      setAuthMessage(
+        "Accounts aren't switched on yet — this app still needs to be " +
+          "connected to its database. Everything else works as a guest.",
+        "info"
+      );
+    }
+
+    showScreen("auth");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Put the cursor in the email box so a keyboard user can start typing.
+    authEmail.focus();
+  }
+
+  // Submitting the form — works for both Enter and the button.
+  authForm.addEventListener("submit", async function (event) {
+    // Stop the browser's default behavior of reloading the page on submit.
+    event.preventDefault();
+
+    // Lock the button so an impatient double-click can't fire two signups.
+    authSubmit.disabled = true;
+    authSubmit.textContent = authMode === "signup" ? "Creating…" : "Logging in…";
+    setAuthMessage(null);
+
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+
+    const result =
+      authMode === "signup"
+        ? await Auth.signUp(email, password)
+        : await Auth.signIn(email, password);
+
+    // Restore the button whatever happened.
+    authSubmit.disabled = false;
+    setAuthMode(authMode);
+
+    if (!result.ok) {
+      setAuthMessage(result.message, "error");
+      return;
+    }
+
+    if (result.needsConfirmation) {
+      // Account created but not usable until they click the emailed link.
+      setAuthMessage(result.message, "success");
+      setAuthMode("login");
+      return;
+    }
+
+    // Signed in. Auth.onChange redraws everything; we just move them along.
+    authForm.reset();
+    showScreen("home");
+  });
+
+  // Toggle between the two modes
+  document.getElementById("auth-switch-btn").addEventListener("click", function () {
+    setAuthMode(authMode === "login" ? "signup" : "login");
+  });
+
+  // Forgot password
+  document.getElementById("auth-forgot").addEventListener("click", async function () {
+    const result = await Auth.resetPassword(authEmail.value.trim());
+    setAuthMessage(result.message, result.ok ? "success" : "error");
+  });
+
+  // "Skip — use as guest" from inside the auth screen
+  document.getElementById("auth-guest").addEventListener("click", function () {
+    Auth.continueAsGuest();
+    showScreen("home");
+  });
+
+  /* ------------------------------------------------------------------------
+     HOME SCREEN CHOICES
+     ------------------------------------------------------------------------ */
+  document.getElementById("go-signup").addEventListener("click", function () {
+    openAuth("signup");
+  });
+
+  document.getElementById("go-login").addEventListener("click", function () {
+    openAuth("login");
+  });
+
+  document.getElementById("go-guest").addEventListener("click", function () {
+    Auth.continueAsGuest();
+  });
+
+  // The various "create an account" prompts scattered around the app
+  ["banner-create-account", "files-create-account", "account-create"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () {
+      openAuth("signup");
+    });
+  });
+
+  document.getElementById("account-login").addEventListener("click", function () {
+    openAuth("login");
+  });
+
+  document.getElementById("account-signout").addEventListener("click", async function () {
+    await Auth.signOut();
+    showScreen("home");
+  });
+
+  /* ------------------------------------------------------------------------
+     REDRAW ON SIGN-IN STATE CHANGE
+     Called at startup and again every time the user logs in, logs out, or
+     picks guest mode. Everything that depends on "who is this?" is updated
+     here in one place, so no screen can be left showing stale state.
+     ------------------------------------------------------------------------ */
+  function renderAuthState() {
+    const signedIn = Boolean(Auth.getUser());
+    const guest = Auth.isGuest();
+    const chosen = Auth.hasChosen();
+
+    // --- Home: ask who they are, or let them start ---
+    document.getElementById("home-welcome").hidden = chosen;
+    document.getElementById("home-start").hidden = !chosen;
+
+    // --- Guest reminder banner ---
+    document.getElementById("guest-banner").hidden = !guest;
+
+    // --- My Files ---
+    document.getElementById("files-guest").hidden = !guest;
+    // Signed in with nothing saved yet. (Real saved quizzes arrive with the
+    // database work; until then an empty list is the honest state.)
+    document.getElementById("files-empty").hidden = !signedIn;
+
+    // --- Account ---
+    document.getElementById("account-signed-in").hidden = !signedIn;
+    document.getElementById("account-guest").hidden = signedIn;
+    document.getElementById("account-email").textContent = Auth.getEmail() || "";
+    document.getElementById("account-subtitle").textContent = signedIn
+      ? "Manage how you're signed in."
+      : "Sign in to keep your quizzes on every device.";
+
+    // --- Menu ---
+    // "Account" reads oddly when you aren't one; call it what it does.
+    const accountMenuItem = document.querySelector('.menu__item[data-screen="account"]');
+    if (accountMenuItem) {
+      accountMenuItem.textContent = signedIn ? "Account" : "Sign In";
+    }
+  }
+
+  /* ------------------------------------------------------------------------
      STARTUP
      ------------------------------------------------------------------------ */
   // Expose the router so quiz.js can switch to the results screen.
   window.showScreen = showScreen;
 
-  // Land on home.
+  // Redraw whenever the sign-in state changes.
+  Auth.onChange(renderAuthState);
+
+  // Land on home, then connect to the account system. init() is async because
+  // restoring a session means asking the server — doing it after the first
+  // paint means the app appears instantly instead of waiting on the network.
   showScreen("home");
+  renderAuthState();
+  Auth.init();
 })();

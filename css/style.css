@@ -588,8 +588,185 @@ h3 {
 }
 
 /* --------------------------------------------------------------------------
-   9. PLACEHOLDER CARDS
-   Used by the My Files / Account screens until Phase 2 builds them for real.
+   9. AUTH — login, sign up, and guest mode
+   -------------------------------------------------------------------------- */
+
+/* The stack of choices on the home screen: Create Account / Log In / Guest.
+   Constraining the width keeps them from stretching into ugly wide bars on a
+   desktop monitor. */
+.auth-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.auth-choices .btn {
+  width: 100%;
+}
+
+/* "Continue as guest" is deliberately the quietest option on the screen —
+   a plain text link rather than a button. Visual weight communicates which
+   path we actually recommend without needing a sentence to say so. */
+.link-button {
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.75rem;
+  border-radius: var(--radius-input);
+  transition: background-color 0.2s var(--ease);
+}
+
+.link-button:hover {
+  background-color: var(--accent-soft);
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A small print note under the guest option */
+.auth-note {
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  max-width: 24rem;
+  margin: 0.25rem auto 0;
+  line-height: 1.4;
+}
+
+/* --- The login / sign up form --- */
+.auth-form {
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  text-align: left;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.field label {
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field input {
+  font-family: inherit;
+  /* 16px minimum on mobile — anything smaller makes iOS Safari zoom the page
+     in when the field is focused, which is jarring and hard to undo. */
+  font-size: max(16px, calc(1rem * var(--font-scale)));
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 0.875rem 1rem;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  width: 100%;
+}
+
+.field input:focus {
+  outline: none; /* replaced by the ring below, which matches our accent */
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Message strip under the form — used for both errors and successes, with
+   the modifier class deciding the color. */
+.auth-message {
+  font-size: calc(0.875rem * var(--font-scale));
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-input);
+  line-height: 1.4;
+  animation: feedback-in 0.25s var(--ease);
+}
+
+.auth-message--error {
+  background-color: var(--wrong-soft);
+  color: var(--wrong);
+}
+
+.auth-message--success {
+  background-color: var(--correct-soft);
+  color: var(--correct);
+}
+
+.auth-message--info {
+  background-color: var(--surface-alt);
+  color: var(--text-muted);
+}
+
+/* The "Don't have an account? Sign up" line under the form */
+.auth-switch {
+  text-align: center;
+  font-size: calc(0.875rem * var(--font-scale));
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.auth-switch .link-button {
+  padding: 0.25rem 0.375rem;
+  font-size: inherit;
+}
+
+/* A button that's mid-request. Dimmed and unclickable so the form can't be
+   submitted twice while the first attempt is still in flight. */
+.btn:disabled,
+.btn.is-loading {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* --- The guest reminder banner --- */
+/* Sits under the menu whenever the user is browsing as a guest, so the fact
+   that nothing is being saved is never a surprise later. */
+.guest-banner {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 90;
+  background-color: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  padding: 0.625rem 1.5rem;
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.guest-banner[hidden] {
+  display: none !important;
+}
+
+.guest-banner .link-button {
+  padding: 0.125rem 0.5rem;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   10. CARDS
    -------------------------------------------------------------------------- */
 .card {
   background-color: var(--surface);
@@ -603,7 +780,7 @@ h3 {
 }
 
 /* --------------------------------------------------------------------------
-   10. RESPONSIVE
+   11. RESPONSIVE
    Only two breakpoints. Everything above scales fluidly because it's built
    from flexbox and relative units rather than fixed pixel widths.
    -------------------------------------------------------------------------- */
