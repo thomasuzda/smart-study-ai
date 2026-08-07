@@ -68,25 +68,28 @@
        ====================================================================== -->
   <main>
     <section class="screen screen--centered" id="screen-home">
-      <h1>Smart Study AI</h1>
-      <p class="subtitle" id="home-subtitle">
+      <!-- The `rise rise--N` classes stagger the entrance: each element fades
+           up 80ms after the one before it, so the page assembles itself
+           instead of appearing all at once. -->
+      <h1 class="rise rise--1">Smart Study AI</h1>
+      <p class="subtitle rise rise--2" id="home-subtitle">
         Turn your notes into a quiz that actually asks you questions.
       </p>
 
       <!-- (a) Before choosing: create an account, log in, or stay a guest -->
       <div id="home-welcome">
         <div class="auth-choices">
-          <button class="btn btn--primary btn--large" type="button" id="go-signup">
+          <button class="btn btn--primary btn--large rise rise--3" type="button" id="go-signup">
             Create Account
           </button>
-          <button class="btn btn--secondary btn--large" type="button" id="go-login">
+          <button class="btn btn--secondary btn--large rise rise--4" type="button" id="go-login">
             Log In
           </button>
-          <button class="link-button" type="button" id="go-guest">
+          <button class="link-button rise rise--5" type="button" id="go-guest">
             Continue as guest
           </button>
         </div>
-        <p class="auth-note">
+        <p class="auth-note rise rise--5">
           An account keeps your quizzes on every device. As a guest everything
           works, but nothing is saved once you close the tab.
         </p>
@@ -94,12 +97,35 @@
 
       <!-- (b) After choosing: get on with it -->
       <div id="home-start" hidden>
-        <button class="btn btn--primary btn--large" type="button" id="start-quiz">
+        <button class="btn btn--primary btn--large rise rise--3" type="button" id="start-quiz">
           Start Quiz
         </button>
-        <p class="text-muted" style="margin-top: 1.5rem">
+        <p class="text-muted rise rise--4" style="margin-top: 1.5rem">
           Sample quiz &middot; 10 questions
         </p>
+      </div>
+
+      <!-- The looping demo. It shows what the app does without asking anyone
+           to read a paragraph about it.
+
+           aria-hidden hides the whole thing from screen readers: it's a
+           decorative loop with constantly changing text, which would be
+           maddening to listen to, and it says nothing the headline doesn't
+           already say. -->
+      <div class="demo rise rise--6" id="demo" aria-hidden="true">
+        <div class="demo__chrome">
+          <span class="demo__dot"></span>
+          <span class="demo__dot"></span>
+          <span class="demo__dot"></span>
+        </div>
+        <div class="demo__body">
+          <div class="demo__meta">
+            <span id="demo-counter">Question 1 of 3</span>
+            <span class="demo__track"><span class="demo__fill" id="demo-fill"></span></span>
+          </div>
+          <p class="demo__question" id="demo-question"></p>
+          <ul class="demo__options" id="demo-options"></ul>
+        </div>
       </div>
     </section>
 
@@ -305,6 +331,7 @@
   <script src="js/auth.js"></script>
   <script src="js/sample-quiz.js"></script>
   <script src="js/quiz.js"></script>
+  <script src="js/hero-demo.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

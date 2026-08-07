@@ -56,6 +56,11 @@
         item.removeAttribute("aria-current");
       }
     });
+
+    // The home screen's demo card animates on a loop. Let it know the screen
+    // changed so it can stop when it's off-screen and pick back up on return
+    // — no sense burning battery animating something nobody can see.
+    if (window.HeroDemo) HeroDemo.syncToScreen();
   }
 
   /* ------------------------------------------------------------------------
@@ -383,5 +388,6 @@
   // paint means the app appears instantly instead of waiting on the network.
   showScreen("home");
   renderAuthState();
+  HeroDemo.init();
   Auth.init();
 })();

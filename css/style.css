@@ -323,9 +323,13 @@ h3 {
   color: #fff;
 }
 
+/* The micro-interaction that does the most work: a 1px lift plus a shadow
+   that grows. It reads as the button rising toward your cursor. Tiny, fast,
+   and it's most of the difference between "styled" and "designed". */
 .btn--primary:hover {
   background-color: var(--accent-hover);
-  box-shadow: 0 4px 16px var(--accent-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 
 .btn--secondary {
@@ -337,12 +341,16 @@ h3 {
 .btn--secondary:hover {
   background-color: var(--accent-soft);
   border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
-/* :active fires while the mouse/finger is held down. Shrinking slightly gives
-   the button a physical "press" feel. */
+/* :active fires while the mouse/finger is held down. Dropping the lift and
+   shrinking slightly gives the button a physical "press" feel. The shorter
+   transition makes the press feel immediate while the release still eases. */
 .btn:active {
   transform: scale(0.97);
+  box-shadow: none;
+  transition-duration: 0.08s;
 }
 
 /* Keyboard focus ring. :focus-visible shows it for keyboard users but NOT for
@@ -780,7 +788,198 @@ h3 {
 }
 
 /* --------------------------------------------------------------------------
-   11. RESPONSIVE
+   11. HOME SCREEN ANIMATION
+   --------------------------------------------------------------------------
+   The whole trick to making motion look professional is restraint: short
+   (under ~450ms), small travel (~14px, not half the screen), and a slight
+   stagger so elements arrive in sequence instead of all at once. Anything
+   that bounces, spins, or slides in from off-screen reads as amateur.
+   -------------------------------------------------------------------------- */
+
+/* Elements marked with this class start invisible and slightly low, then
+   animate into place. `both` fill mode is what keeps them hidden during the
+   delay — without it they'd flash at full opacity before the delay elapses. */
+.rise {
+  opacity: 0;
+  animation: rise-in 0.55s var(--ease) both;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The stagger. Each step is 80ms — long enough to read as a sequence, short
+   enough that the whole cascade finishes in about half a second. */
+.rise--1 { animation-delay: 0.00s; }
+.rise--2 { animation-delay: 0.08s; }
+.rise--3 { animation-delay: 0.16s; }
+.rise--4 { animation-delay: 0.24s; }
+.rise--5 { animation-delay: 0.32s; }
+.rise--6 { animation-delay: 0.40s; }
+
+/* --------------------------------------------------------------------------
+   12. THE DEMO CARD
+   A small mock quiz that answers itself on a loop, so a first-time visitor
+   understands the product without reading anything.
+   -------------------------------------------------------------------------- */
+.demo {
+  width: 100%;
+  max-width: 25rem;
+  margin: 3.5rem auto 0;
+  text-align: left;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lifted);
+  overflow: hidden;
+  /* Not interactive — it's a picture that moves. Without this, the cursor
+     would change over it and people would try to click the fake answers. */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The three dots along the top. A tiny visual cue that says "this is a
+   screen, not a real control you should be poking at." */
+.demo__chrome {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--surface-alt);
+}
+
+.demo__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--border);
+}
+
+.demo__body {
+  padding: 1.25rem;
+}
+
+.demo__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: calc(0.75rem * var(--font-scale));
+  color: var(--text-muted);
+  margin-bottom: 0.875rem;
+}
+
+.demo__track {
+  width: 72px;
+  height: 4px;
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.demo__fill {
+  height: 100%;
+  width: 0%;
+  background-color: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width 0.6s var(--ease);
+}
+
+.demo__question {
+  font-size: calc(1.0625rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin-bottom: 1rem;
+  min-height: 2.6em; /* reserves space so shorter questions don't make the
+                        card jump in height between loops */
+}
+
+.demo__options {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.demo__option {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 0.625rem 0.75rem;
+  transition: border-color 0.35s var(--ease), background-color 0.35s var(--ease),
+    opacity 0.35s var(--ease), transform 0.35s var(--ease);
+}
+
+/* The little circle that becomes a checkmark */
+.demo__bullet {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: transparent; /* the checkmark is there but invisible until correct */
+  transition: background-color 0.35s var(--ease), border-color 0.35s var(--ease),
+    color 0.35s var(--ease);
+}
+
+/* The brief moment where the answer is "being considered", just before it
+   resolves. This half-second of hesitation is what makes it feel like
+   someone is using the app rather than a slideshow advancing. */
+.demo__option.is-considering {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.demo__option.is-correct {
+  border-color: var(--correct);
+  background-color: var(--correct-soft);
+}
+
+.demo__option.is-correct .demo__bullet {
+  background-color: var(--correct);
+  border-color: var(--correct);
+  color: #fff;
+}
+
+.demo__option.is-dimmed {
+  opacity: 0.4;
+}
+
+/* Options fade up one after another as the "question loads" */
+.demo__option.is-entering {
+  animation: rise-in 0.4s var(--ease) both;
+}
+
+/* --------------------------------------------------------------------------
+   REDUCED MOTION
+   Some people get motion sickness from animation, and their OS has a setting
+   to say so. We honor it: the demo card still shows a fully answered
+   question, it just stops moving. The information survives; the motion goes.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .demo__option.is-entering {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .btn:hover {
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   13. RESPONSIVE
    Only two breakpoints. Everything above scales fluidly because it's built
    from flexbox and relative units rather than fixed pixel widths.
    -------------------------------------------------------------------------- */
