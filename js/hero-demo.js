@@ -164,14 +164,29 @@ const HeroDemo = (function () {
     }, TIMING.beforeConsider + TIMING.considerHold + TIMING.afterAnswer);
   }
 
+  /* Paint the first question with no animation and no answer showing.
+
+     This is what the card looks like before anything happens, and it's the
+     fix for a card that would otherwise sit empty: browsers freeze animations
+     in background tabs, so someone who cmd-clicks the site into a background
+     tab would find a blank card waiting for them. Now they find a question. */
+  function showFirstFrame() {
+    const q = DEMO_QUESTIONS[0];
+    renderOptions(q, false);
+    els.counter.textContent = 'Question 1 of ' + DEMO_QUESTIONS.length;
+    els.question.textContent = q.question;
+    els.fill.style.width = ((1 / DEMO_QUESTIONS.length) * 100).toFixed(0) + '%';
+  }
+
   /* The still version, for people who've asked their system not to animate
-     things. Same information, no movement. */
+     things. Same information, no movement — the question is shown already
+     answered, so the card still communicates what the app does. */
   function showStatic() {
     const q = DEMO_QUESTIONS[0];
     const rows = renderOptions(q, false);
     els.counter.textContent = 'Question 1 of ' + DEMO_QUESTIONS.length;
     els.question.textContent = q.question;
-    els.fill.style.width = '33%';
+    els.fill.style.width = ((1 / DEMO_QUESTIONS.length) * 100).toFixed(0) + '%';
     rows[q.correctIndex].classList.add('is-correct');
     rows.forEach(function (row, i) {
       if (i !== q.correctIndex) row.classList.add('is-dimmed');
@@ -215,9 +230,12 @@ const HeroDemo = (function () {
       }
     });
 
-    // Only begin if the tab is actually in front. `visibilitychange` fires on
-    // a change, so a page opened in a background tab would never receive one
-    // and the loop would run unseen until the user finally switched to it.
+    // Always paint something first, so the card is never empty.
+    showFirstFrame();
+
+    // Only begin the loop if the tab is actually in front. `visibilitychange`
+    // fires on a change, so a page opened in a background tab would never
+    // receive one and the loop would run unseen until the user switched to it.
     if (!document.hidden) start();
   }
 
