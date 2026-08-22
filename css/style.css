@@ -1522,3 +1522,149 @@ h3 {
   .qcard__number { left: 0.875rem; top: 1.25rem; }
   .quiz__bar-inner { padding: 0.75rem 1rem; flex-wrap: wrap; }
 }
+
+/* --------------------------------------------------------------------------
+   LANDING HERO — dark treatment
+   The particle scene uses additive blending, where overlapping points brighten
+   each other. That only reads as a glow against something dark, so the landing
+   is dark in both light and dark mode. The rest of the app still follows the
+   system setting; this one screen is deliberately its own thing.
+   -------------------------------------------------------------------------- */
+.landing {
+  background-color: #05070d;
+  color: #f5f7fa;
+  /* Cover the full viewport under the sticky header so there's no pale strip
+     at the bottom on short pages. */
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.landing .landing__title {
+  color: #ffffff;
+  /* Slightly tighter and heavier than the app default — at this size on black
+     it otherwise reads as thin. */
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  text-shadow: 0 2px 40px rgba(56, 189, 248, 0.25);
+}
+
+.landing .landing__tagline,
+.landing .landing__note {
+  color: #9aa7bd;
+}
+
+.landing .landing__badge {
+  color: #7dd3fc;
+  background-color: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
+.landing .landing__badge-dot {
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.9);
+}
+
+/* Cards become glass over the scene rather than solid blocks, so the
+   particles stay visible behind them. */
+.landing .feature {
+  background-color: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.landing .feature:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background-color: rgba(56, 189, 248, 0.06);
+}
+
+.landing .feature h3 { color: #eaf2ff; }
+.landing .feature p  { color: #93a3ba; }
+
+.landing .btn--primary {
+  background-color: #38bdf8;
+  color: #04121f;
+  font-weight: 600;
+  box-shadow: 0 6px 30px rgba(56, 189, 248, 0.35);
+}
+
+.landing .btn--primary:hover {
+  background-color: #7dd3fc;
+  box-shadow: 0 8px 38px rgba(56, 189, 248, 0.5);
+}
+
+/* A vignette so the text always has contrast, however bright the particles
+   behind it happen to be at that moment. */
+.landing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 42%,
+    rgba(5, 7, 13, 0.9) 0%,
+    rgba(5, 7, 13, 0.7) 32%,
+    rgba(5, 7, 13, 0.25) 55%,
+    rgba(5, 7, 13, 0) 78%
+  );
+}
+
+/* Fallback when the scene can't run (no WebGL, or reduced motion): a static
+   gradient, so the landing still looks deliberate rather than plain black. */
+.hero-static .landing {
+  background-image:
+    radial-gradient(ellipse at 50% 120%, rgba(56, 189, 248, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 20% 10%, rgba(30, 64, 175, 0.18) 0%, transparent 50%);
+}
+
+/* --------------------------------------------------------------------------
+   LANDING — hero gets the screen to itself
+   The particle bust needs empty space to be legible. Cards sitting on top of
+   it hid the head entirely, so the hero now fills the viewport and the cards
+   sit below it.
+   -------------------------------------------------------------------------- */
+.landing {
+  display: block;          /* was flex-centred; the two blocks now stack */
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: auto;
+}
+
+.landing__hero {
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem 4rem;
+  /* Sit the text in the upper half, leaving the lower half for the shoulders
+     to sweep through unobstructed. */
+  padding-bottom: 22vh;
+}
+
+.landing__below {
+  position: relative;
+  z-index: 1;
+  padding: 0 1.5rem 4rem;
+}
+
+/* The canvas covers the whole landing section, hero and cards alike. */
+.void-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+@media (max-width: 600px) {
+  .landing__hero {
+    min-height: calc(100svh - var(--header-height));
+    padding-bottom: 18vh;
+  }
+}
