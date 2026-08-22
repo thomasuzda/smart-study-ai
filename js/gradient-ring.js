@@ -16,7 +16,7 @@
 
 const GradientRing = (function () {
   const CFG = {
-    tiles: 12,
+    tiles: 12,   // one per entry in SUBJECTS
     axisDeg: 24,      // screen angle of the ring's major axis
     tiltDeg: 68,      // how far the ring is tipped away from the viewer
     ringRadius: 0.42, // as a fraction of the smaller viewport side
@@ -25,6 +25,16 @@ const GradientRing = (function () {
     speed: 0.00016,   // radians per millisecond — deliberately slow
     perspective: 0.55,
   };
+
+  /* One per tile. Kept to single short words: anything longer shrinks to
+     unreadable once a tile is scaled down and rotated on the far side of the
+     ring. Ordered so related subjects aren't adjacent, since neighbouring
+     tiles overlap and similar words blur together. */
+  const SUBJECTS = [
+    'BIOLOGY', 'CALCULUS', 'HISTORY', 'CHEMISTRY',
+    'PHYSICS', 'SPANISH', 'ANATOMY', 'STATISTICS',
+    'PSYCHOLOGY', 'ECONOMICS', 'LOGIC', 'NURSING',
+  ];
 
   /* Tile gradients. Blues and cyans to match the app, with two warm tiles so
      the ring has a focal point instead of reading as one flat colour. */
@@ -64,7 +74,7 @@ const GradientRing = (function () {
     c.closePath();
   }
 
-  function buildTile(colours, size) {
+  function buildTile(colours, size, label) {
     const c = document.createElement('canvas');
     c.width = c.height = Math.round(size);
     const g = c.getContext('2d');
@@ -112,7 +122,45 @@ const GradientRing = (function () {
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
 
+    /* The subject name. Some of these gradients are pale at one corner, so the
+       label gets a dark scrim behind it rather than relying on the shadow —
+       white-on-cyan is unreadable without one. */
+    if (label) {
+      const pad = size * 0.1;
+      let fontSize = size * 0.13;
+      g.font = '600 ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+
+      // Shrink long words to fit rather than letting them run off the tile.
+      const maxWidth = size - pad * 2;
+      while (g.measureText(label).width > maxWidth && fontSize > size * 0.07) {
+        fontSize -= size * 0.005;
+        g.font = '600 ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+      }
+
+      const textWidth = g.measureText(label).width;
+      const barHeight = fontSize * 1.9;
+      const barY = size - barHeight - pad * 0.6;
+
+      g.fillStyle = 'rgba(4, 8, 16, 0.55)';
+      g.fillRect(0, barY, size, barHeight);
+
+      g.fillStyle = 'rgba(255,255,255,0.96)';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.shadowColor = 'rgba(0,0,0,0.6)';
+      g.shadowBlur = fontSize * 0.5;
+      g.fillText(label, size / 2, barY + barHeight / 2);
+      g.shadowBlur = 0;
+    }
+
     return c;
+  }
+
+  /* Where the ring and headline sit vertically. On a phone the hero is tall
+     and narrow, and a centred ring lands right on top of the tagline — so it
+     moves up into the empty space above it. */
+  function centreY() {
+    return height * (width < 700 ? 0.38 : 0.5);
   }
 
   function buildHeadline() {
@@ -132,7 +180,7 @@ const GradientRing = (function () {
     g.shadowBlur = size * 0.25;
 
     const lineHeight = size * 0.92;
-    const top = height / 2 - ((lines.length - 1) * lineHeight) / 2;
+    const top = centreY() - ((lines.length - 1) * lineHeight) / 2;
     lines.forEach(function (line, i) {
       g.fillText(line, width / 2, top + i * lineHeight);
     });
@@ -143,16 +191,18 @@ const GradientRing = (function () {
      DRAWING
      --------------------------------------------------------------------- */
 
-  function draw(now) {
+  function paint(now) {
     const t = now - startedAt;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
     pointerX += (pointerTargetX - pointerX) * 0.05;
 
-    const min = Math.min(width, height);
-    const R = min * CFG.ringRadius;
-    const TS = min * CFG.tileSize;
+    // Base the ring on width alone below 700px: on a tall phone screen,
+    // using the smaller side made the ring shrink and the tiles crowd.
+    const base = width < 700 ? width : Math.min(width, height);
+    const R = base * (width < 700 ? 0.40 : CFG.ringRadius);
+    const TS = base * (width < 700 ? 0.21 : CFG.tileSize);
 
     const ax = (CFG.axisDeg * Math.PI) / 180;
     const tilt = (CFG.tiltDeg * Math.PI) / 180;
@@ -184,8 +234,10 @@ const GradientRing = (function () {
     // Painter's algorithm: furthest first, so nearer tiles overlap them.
     tiles.sort(function (a, b) { return a.z - b.z; });
 
+    const cy = centreY();
+
     ctx.save();
-    ctx.translate(width / 2, height / 2);
+    ctx.translate(width / 2, cy);
 
     let textDrawn = false;
     for (let k = 0; k < tiles.length; k++) {
@@ -198,7 +250,7 @@ const GradientRing = (function () {
         ctx.restore();
         ctx.drawImage(headline, 0, 0, width, height);
         ctx.save();
-        ctx.translate(width / 2, height / 2);
+        ctx.translate(width / 2, cy);
         textDrawn = true;
       }
 
@@ -233,6 +285,10 @@ const GradientRing = (function () {
     }
 
     ctx.restore();
+  }
+
+  function draw(now) {
+    paint(now);
     frame = requestAnimationFrame(draw);
   }
 
@@ -253,10 +309,17 @@ const GradientRing = (function () {
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
 
-    const min = Math.min(width, height);
-    const tilePx = Math.round(min * CFG.tileSize * dpr);
-    tileCanvases = PALETTES.map(function (p) { return buildTile(p, tilePx); });
+    const base = width < 700 ? width : Math.min(width, height);
+    const tilePx = Math.round(base * (width < 700 ? 0.21 : CFG.tileSize) * dpr);
+    tileCanvases = SUBJECTS.map(function (subject, i) {
+      return buildTile(PALETTES[i % PALETTES.length], tilePx, subject);
+    });
     headline = buildHeadline();
+
+    /* Resizing clears the canvas. If the loop happens to be stopped — reduced
+       motion, a background tab, or another screen showing — nothing would
+       repaint it and the hero would simply be blank. */
+    if (frame === null && ctx) paint(performance.now());
   }
 
   function start() {
@@ -293,9 +356,7 @@ const GradientRing = (function () {
 
     // Motion sickness is a real thing and this ring is large and rotating.
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      draw(performance.now());   // one still frame
-      cancelAnimationFrame(frame);
-      frame = null;
+      paint(performance.now());   // one still frame, no loop
       return;
     }
 
@@ -305,8 +366,10 @@ const GradientRing = (function () {
       pointerTargetX = (e.clientX / window.innerWidth) * 2 - 1;
     });
 
+    // Paint immediately either way, so a page opened in a background tab is
+    // never blank — requestAnimationFrame doesn't run while hidden.
+    paint(performance.now());
     if (!document.hidden) start();
-    else draw(performance.now()), cancelAnimationFrame(frame), (frame = null);
   }
 
   return { init: init, sync: sync, isRunning: function () { return frame !== null; } };
