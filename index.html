@@ -38,8 +38,6 @@
     <span class="menu__brand">Smart Study AI</span>
 
     <button class="menu__item" type="button" data-screen="home">Home</button>
-    <button class="menu__item" type="button" data-screen="files">My Files</button>
-
     <!-- Text size control. aria-label gives screen readers a real description,
          since "A−" alone doesn't say what it does. -->
     <div class="menu__sizer" role="group" aria-label="Text size">
@@ -53,7 +51,7 @@
   <!-- Shown only while browsing as a guest, so "nothing was saved" is never
        a surprise discovered later. js/ui.js toggles it. -->
   <div class="guest-banner" id="guest-banner" hidden>
-    <span>You're using Smart Study AI as a guest &mdash; your quizzes won't be saved.</span>
+    <span>You're using Smart Study AI as a guest &mdash; your chats won't be saved.</span>
     <button class="link-button" type="button" id="banner-create-account">
       Create a free account
     </button>
@@ -67,65 +65,29 @@
        like it's bouncing the user between pages.
        ====================================================================== -->
   <main>
-    <section class="screen screen--centered" id="screen-home">
-      <!-- The `rise rise--N` classes stagger the entrance: each element fades
-           up 80ms after the one before it, so the page assembles itself
-           instead of appearing all at once. -->
-      <h1 class="rise rise--1">Smart Study AI</h1>
-      <p class="subtitle rise rise--2" id="home-subtitle">
-        Turn your notes into a quiz that actually asks you questions.
-      </p>
-
-      <!-- (a) Before choosing: create an account, log in, or stay a guest -->
-      <div id="home-welcome">
-        <div class="auth-choices">
-          <button class="btn btn--primary btn--large rise rise--3" type="button" id="go-signup">
-            Create Account
-          </button>
-          <button class="btn btn--secondary btn--large rise rise--4" type="button" id="go-login">
-            Log In
-          </button>
-          <button class="link-button rise rise--5" type="button" id="go-guest">
-            Continue as guest
-          </button>
+    <section class="screen chat-screen" id="screen-home">
+      <div class="chat-shell">
+        <div class="chat-intro">
+          <span class="chat-intro__mark" aria-hidden="true">✦</span>
+          <h1>How can I help you study?</h1>
+          <p>Paste notes, ask a question, or tell me what you want to learn.</p>
         </div>
-        <p class="auth-note rise rise--5">
-          An account keeps your quizzes on every device. As a guest everything
-          works, but nothing is saved once you close the tab.
-        </p>
-      </div>
 
-      <!-- (b) After choosing: get on with it -->
-      <div id="home-start" hidden>
-        <button class="btn btn--primary btn--large rise rise--3" type="button" id="start-quiz">
-          Start Quiz
-        </button>
-        <p class="text-muted rise rise--4" style="margin-top: 1.5rem">
-          Sample quiz &middot; 10 questions
-        </p>
-      </div>
-
-      <!-- The looping demo. It shows what the app does without asking anyone
-           to read a paragraph about it.
-
-           aria-hidden hides the whole thing from screen readers: it's a
-           decorative loop with constantly changing text, which would be
-           maddening to listen to, and it says nothing the headline doesn't
-           already say. -->
-      <div class="demo rise rise--6" id="demo" aria-hidden="true">
-        <div class="demo__chrome">
-          <span class="demo__dot"></span>
-          <span class="demo__dot"></span>
-          <span class="demo__dot"></span>
+        <div class="chat-messages" id="chat-messages" aria-live="polite">
+          <article class="chat-message chat-message--assistant">
+            <span class="chat-avatar" aria-hidden="true">✦</span>
+            <p>Hi, I’m your study assistant. What are you working on today?</p>
+          </article>
         </div>
-        <div class="demo__body">
-          <div class="demo__meta">
-            <span id="demo-counter">Question 1 of 3</span>
-            <span class="demo__track"><span class="demo__fill" id="demo-fill"></span></span>
-          </div>
-          <p class="demo__question" id="demo-question"></p>
-          <ul class="demo__options" id="demo-options"></ul>
-        </div>
+
+        <form class="chat-composer" id="chat-form">
+          <label class="sr-only" for="chat-input">Message Smart Study AI</label>
+          <textarea id="chat-input" rows="1" placeholder="Message Smart Study AI…"></textarea>
+          <button class="chat-send" type="submit" aria-label="Send message">
+            <span aria-hidden="true">↑</span>
+          </button>
+        </form>
+        <p class="chat-disclaimer">AI responses will appear here once your AI connection is set up.</p>
       </div>
     </section>
 
@@ -263,7 +225,7 @@
     <section class="screen" id="screen-files" hidden>
       <h2>My Files</h2>
       <p class="subtitle" style="margin-bottom: 2rem">
-        Your saved quizzes live here.
+        Your saved study chats will live here.
       </p>
 
       <!-- What this screen says depends on who you are, so there are two
@@ -271,9 +233,8 @@
       <div class="card" id="files-guest" hidden>
         <h3>Nothing is being saved</h3>
         <p class="text-muted" style="margin-bottom: 1.5rem">
-          You're using the app as a guest. Quizzes you take work normally, but
-          they disappear when you close the tab. An account is free and keeps
-          them on every device you use.
+          You're using the app as a guest. Your chats disappear when you close
+          the tab. An account will keep them on every device you use.
         </p>
         <button class="btn btn--primary" type="button" id="files-create-account">
           Create Account
@@ -281,9 +242,9 @@
       </div>
 
       <div class="card" id="files-empty" hidden>
-        <h3>No quizzes yet</h3>
+        <h3>No chats yet</h3>
         <p class="text-muted">
-          Once you make a quiz it'll show up here, ready to retake any time.
+          Once you start a study chat, it’ll show up here.
         </p>
       </div>
     </section>
@@ -309,7 +270,7 @@
         <h3>Browsing as a guest</h3>
         <p class="text-muted" style="margin-bottom: 1.5rem">
           Nothing you do is being saved. Create a free account to keep your
-          quizzes, or log in if you already have one.
+          study chats, or log in if you already have one.
         </p>
         <div class="auth-choices">
           <button class="btn btn--primary" type="button" id="account-create">Create Account</button>
@@ -329,9 +290,7 @@
        (which wires everything together and must go last). -->
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/sample-quiz.js"></script>
   <script src="js/quiz.js"></script>
-  <script src="js/hero-demo.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

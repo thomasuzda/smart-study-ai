@@ -57,10 +57,6 @@
       }
     });
 
-    // The home screen's demo card animates on a loop. Let it know the screen
-    // changed so it can stop when it's off-screen and pick back up on return
-    // — no sense burning battery animating something nobody can see.
-    if (window.HeroDemo) HeroDemo.syncToScreen();
   }
 
   /* ------------------------------------------------------------------------
@@ -137,16 +133,39 @@
   });
 
   /* ------------------------------------------------------------------------
-     QUIZ FLOW BUTTONS
+     STUDY CHAT
+     The visible chat is ready for a real AI endpoint. Until that connection
+     exists, it acknowledges messages honestly rather than pretending a model
+     generated an answer.
      ------------------------------------------------------------------------ */
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const chatMessages = document.getElementById("chat-messages");
 
-  // Home → start the sample quiz
-  document.getElementById("start-quiz").addEventListener("click", function () {
-    // SAMPLE_QUIZ comes from js/sample-quiz.js, loaded before this file.
-    // Later this is whatever quiz the user picked or the AI just generated.
-    if (QuizEngine.start(SAMPLE_QUIZ)) {
-      showScreen("quiz");
-    }
+  chatForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    const userMessage = document.createElement("article");
+    userMessage.className = "chat-message chat-message--user";
+    const userText = document.createElement("p");
+    userText.textContent = message;
+    userMessage.appendChild(userText);
+    chatMessages.appendChild(userMessage);
+
+    const notice = document.createElement("article");
+    notice.className = "chat-message chat-message--assistant";
+    notice.innerHTML = '<span class="chat-avatar" aria-hidden="true">✦</span><p>Your AI study assistant isn’t connected yet. Add your AI connection and I’ll be ready to help with this.</p>';
+    chatMessages.appendChild(notice);
+    chatInput.value = "";
+    chatInput.style.height = "auto";
+    notice.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+
+  chatInput.addEventListener("input", function () {
+    chatInput.style.height = "auto";
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + "px";
   });
 
   // Quiz → next question (or the results screen on the last one)
@@ -204,7 +223,7 @@
       ? "Create Account"
       : "Log In";
     document.getElementById("auth-subtitle").textContent = isSignup
-      ? "Free, and your quizzes follow you everywhere."
+      ? "Free, and your study chats follow you everywhere."
       : "Welcome back.";
     authSubmit.textContent = isSignup ? "Create Account" : "Log In";
     document.getElementById("auth-switch-text").textContent = isSignup
@@ -303,21 +322,6 @@
     showScreen("home");
   });
 
-  /* ------------------------------------------------------------------------
-     HOME SCREEN CHOICES
-     ------------------------------------------------------------------------ */
-  document.getElementById("go-signup").addEventListener("click", function () {
-    openAuth("signup");
-  });
-
-  document.getElementById("go-login").addEventListener("click", function () {
-    openAuth("login");
-  });
-
-  document.getElementById("go-guest").addEventListener("click", function () {
-    Auth.continueAsGuest();
-  });
-
   // The various "create an account" prompts scattered around the app
   ["banner-create-account", "files-create-account", "account-create"].forEach(function (id) {
     document.getElementById(id).addEventListener("click", function () {
@@ -343,11 +347,6 @@
   function renderAuthState() {
     const signedIn = Boolean(Auth.getUser());
     const guest = Auth.isGuest();
-    const chosen = Auth.hasChosen();
-
-    // --- Home: ask who they are, or let them start ---
-    document.getElementById("home-welcome").hidden = chosen;
-    document.getElementById("home-start").hidden = !chosen;
 
     // --- Guest reminder banner ---
     document.getElementById("guest-banner").hidden = !guest;
@@ -364,7 +363,7 @@
     document.getElementById("account-email").textContent = Auth.getEmail() || "";
     document.getElementById("account-subtitle").textContent = signedIn
       ? "Manage how you're signed in."
-      : "Sign in to keep your quizzes on every device.";
+      : "Sign in to keep your study chats on every device.";
 
     // --- Menu ---
     // "Account" reads oddly when you aren't one; call it what it does.
@@ -388,6 +387,5 @@
   // paint means the app appears instantly instead of waiting on the network.
   showScreen("home");
   renderAuthState();
-  HeroDemo.init();
   Auth.init();
 })();

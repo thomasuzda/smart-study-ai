@@ -1,0 +1,13 @@
+{
+  "name": "smart-study-ai",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Paste your notes, get a practice quiz.",
+  "scripts": {
+    "dev": "node dev-server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0"
+  }
+}
