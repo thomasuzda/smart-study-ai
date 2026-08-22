@@ -262,7 +262,14 @@
 
       <div class="quiz__meta">
         <span id="question-counter">Question 1 of 10</span>
-        <span id="score-so-far">0 correct</span>
+        <span class="quiz__meta-right">
+          <!-- Reshuffles and restarts. Answering the same questions in the
+               same order teaches you the order, not the material. -->
+          <button class="quiz__shuffle" type="button" id="shuffle-quiz">
+            Shuffle
+          </button>
+          <span id="score-so-far">0 correct</span>
+        </span>
       </div>
 
       <!-- aria-live="polite" makes screen readers read the new question when

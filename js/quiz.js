@@ -320,8 +320,42 @@ const QuizEngine = (function () {
      Only these three are exposed. Everything above stays private to this
      file, so nothing else can accidentally reach in and corrupt the state.
      ------------------------------------------------------------------------ */
+  /* Fisher-Yates: walks the array backwards swapping each item with a random
+     earlier one. Every ordering is equally likely, which the obvious
+     sort(() => Math.random() - 0.5) is not. */
+  function shuffled(array) {
+    const copy = array.slice();
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = copy[i];
+      copy[i] = copy[j];
+      copy[j] = t;
+    }
+    return copy;
+  }
+
+  /* Reorder the questions, and the options inside each one. Shuffling options
+     means tracking where the right answer moved to — otherwise correctIndex
+     would still point at whatever is now in that slot, and every answer would
+     be marked wrong. */
+  function shuffle() {
+    if (!quiz) return false;
+    const reordered = shuffled(quiz.questions).map(function (question) {
+      const pairs = question.options.map(function (text, index) {
+        return { text: text, wasCorrect: index === question.correctIndex };
+      });
+      const mixed = shuffled(pairs);
+      return Object.assign({}, question, {
+        options: mixed.map(function (p) { return p.text; }),
+        correctIndex: mixed.findIndex(function (p) { return p.wasCorrect; }),
+      });
+    });
+    return start(Object.assign({}, quiz, { questions: reordered }));
+  }
+
   return {
     start: start,
+    shuffle: shuffle,
     next: next,
     // Which quiz is loaded, so the UI can restart the same one on "Try Again"
     getQuiz: function () {

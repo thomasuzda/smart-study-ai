@@ -1345,3 +1345,46 @@ h3 {
   position: relative;
   z-index: 1;
 }
+
+/* Choice buttons inside an assistant reply. */
+.chat-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chat-choice {
+  font-size: calc(0.875rem * var(--font-scale));
+  padding: 0.5rem 1rem;
+}
+
+.quiz__meta-right {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.quiz__shuffle {
+  appearance: none;
+  font: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.quiz__shuffle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Chat replies are inserted as plain text, so newlines need preserving or a
+   multi-paragraph answer collapses into one run-on line. pre-wrap keeps line
+   breaks while still wrapping long lines normally. */
+.chat-message__body p {
+  white-space: pre-wrap;
+}

@@ -232,6 +232,104 @@
     chatInput.disabled = state;
   }
 
+  /* Offer buttons inside an assistant bubble. Each is a plain label plus the
+     function to run — no strings spliced into onclick handlers, which is what
+     breaks the moment a question contains a quote. */
+  function addChoices(container, choices) {
+    const row = document.createElement("div");
+    row.className = "chat-choices";
+    choices.forEach(function (choice, i) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn " + (i === 0 ? "btn--primary" : "btn--secondary") + " chat-choice";
+      button.textContent = choice.label;
+      button.addEventListener("click", function () {
+        // Once a path is chosen the others are meaningless — replace the row
+        // with what was picked, so the transcript reads back sensibly.
+        row.remove();
+        const echo = document.createElement("p");
+        echo.className = "chat-note";
+        echo.textContent = "\u2192 " + choice.label;
+        container.appendChild(echo);
+        choice.run();
+      });
+      row.appendChild(button);
+    });
+    container.appendChild(row);
+  }
+
+  function addStartButton(container, quiz) {
+    const button = document.createElement("button");
+    button.className = "btn btn--primary chat-start";
+    button.type = "button";
+    button.textContent = "Start quiz \u00b7 " + quiz.questions.length + " questions";
+    button.addEventListener("click", function () {
+      if (QuizEngine.start(quiz)) {
+        showScreen("quiz");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+    container.appendChild(button);
+  }
+
+  /* Present a finished quiz: what happened, a start button, and a reminder
+     that it can be revised. */
+  function presentQuiz(container, result) {
+    container.innerHTML = "";
+    const summary = document.createElement("p");
+    const n = result.quiz.questions.length;
+    const what =
+      result.mode === "extract"
+        ? "Your professor's questions, ready to answer"
+        : result.mode === "mirror"
+        ? "New questions in the same style"
+        : result.mode === "refine"
+        ? "Revised"
+        : "Questions from your notes";
+    summary.textContent = what + " \u2014 " + n + " on " + result.quiz.subject + ".";
+    container.appendChild(summary);
+
+    if (result.dropped > 0) {
+      const note = document.createElement("p");
+      note.className = "chat-note";
+      note.textContent =
+        result.dropped + (result.dropped === 1 ? " question was" : " questions were") +
+        " left out because the answer couldn't be worked out.";
+      container.appendChild(note);
+    }
+
+    addStartButton(container, result.quiz);
+
+    const hint = document.createElement("p");
+    hint.className = "chat-note";
+    hint.textContent = "Want it different? Say so \u2014 \u201cmake them harder\u201d, \u201cno true/false\u201d.";
+    container.appendChild(hint);
+    renderChatContext();
+  }
+
+  /* Run an async job with a placeholder bubble, replacing it on success and
+     showing the reason on failure. */
+  async function withThinking(text, job) {
+    setBusy(true);
+    const bubble = addMessage("assistant", text);
+    try {
+      await job(bubble);
+    } catch (error) {
+      bubble.innerHTML = "";
+      const p = document.createElement("p");
+      p.className = "chat-error";
+      p.textContent = error.message;
+      bubble.appendChild(p);
+    } finally {
+      setBusy(false);
+      chatInput.focus();
+    }
+  }
+
+  function currentCount() {
+    return countSelect ? Number(countSelect.value) : 10;
+  }
+
   chatForm.addEventListener("submit", async function (event) {
     event.preventDefault();
     if (busy) return;
@@ -243,63 +341,108 @@
     chatInput.value = "";
     chatInput.style.height = "auto";
 
-    setBusy(true);
-    const thinking = addMessage(
-      "assistant",
-      !forceNewNext && Generate.classify(message) === "refine"
-        ? "Revising your questions\u2026"
-        : "Reading that and writing questions\u2026"
-    );
+    const intent = forceNewNext ? (Generate.looksLikeQuiz(message) ? "choose" : "plan")
+                                : Generate.classify(message);
+    forceNewNext = false;
 
-    try {
-      const count = countSelect ? Number(countSelect.value) : 10;
-      const result = await Generate.send(message, count, forceNewNext ? "new" : null);
-      forceNewNext = false;
-
-      // Replace the placeholder text with the real outcome.
-      thinking.innerHTML = "";
-      const summary = document.createElement("p");
-      const n = result.quiz.questions.length;
-      if (result.mode === "refine") {
-        summary.textContent = "Revised \u2014 " + n + " questions on " + result.quiz.subject + ".";
-      } else {
-        const kind =
-          result.detectedInputType === "existing_questions"
-            ? "Read that as an existing quiz, so these are new questions in the same style"
-            : "Read that as study notes";
-        summary.textContent = kind + " \u2014 " + n + " questions on " + result.quiz.subject + ".";
-      }
-      thinking.appendChild(summary);
-
-      // Be honest when the server discarded malformed questions.
-      if (result.dropped > 0) {
-        const note = document.createElement("p");
-        note.className = "chat-note";
-        note.textContent =
-          result.dropped +
-          (result.dropped === 1 ? " question came" : " questions came") +
-          " back malformed and was left out.";
-        thinking.appendChild(note);
-      }
-
-      addStartButton(thinking, n);
-      renderChatContext();
-
-      const hint = document.createElement("p");
-      hint.className = "chat-note";
-      hint.textContent =
-        "Not right? Tell me what to change \u2014 for example \u201cmake them harder\u201d or \u201cno true/false\u201d.";
-      thinking.appendChild(hint);
-    } catch (error) {
-      thinking.innerHTML = "";
-      const p = document.createElement("p");
-      p.className = "chat-error";
-      p.textContent = error.message;
-      thinking.appendChild(p);
-    } finally {
-      setBusy(false);
-      chatInput.focus();
+    // ---- A pasted quiz: ask which of the two very different things they want
+    if (intent === "choose") {
+      const approx = Generate.countQuestions(message);
+      const bubble = addMessage(
+        "assistant",
+        "That looks like a quiz" +
+          (approx ? " with about " + approx + " questions" : "") +
+          ". What would you like?"
+      );
+      addChoices(bubble, [
+        {
+          label: "Use these exact questions",
+          run: function () {
+            withThinking("Setting up your professor's questions\u2026", async function (b) {
+              presentQuiz(b, await Generate.buildQuiz(message, "extract"));
+            });
+          },
+        },
+        {
+          label: "New questions in this style",
+          run: function () {
+            withThinking("Writing new questions in that style\u2026", async function (b) {
+              presentQuiz(b, await Generate.buildQuiz(message, "mirror", currentCount()));
+            });
+          },
+        },
+        {
+          label: "Help me plan first",
+          run: function () {
+            withThinking("Thinking\u2026", async function (b) {
+              b.innerHTML = "";
+              const p = document.createElement("p");
+              p.textContent = await Generate.chat(
+                "I pasted a quiz from my class. Help me decide how to study it. Here it is:\n\n" +
+                  message.slice(0, 2000)
+              );
+              b.appendChild(p);
+            });
+          },
+        },
+      ]);
+      return;
     }
+
+    // ---- Pasted study material: planning is the default, as you asked
+    if (intent === "plan") {
+      const bubble = addMessage(
+        "assistant",
+        "That looks like study material. What kind of quiz would you like?"
+      );
+      const make = function (label, extra) {
+        return {
+          label: label,
+          run: function () {
+            withThinking("Writing your questions\u2026", async function (b) {
+              const material = extra ? message + "\n\nPreference: " + extra : message;
+              presentQuiz(b, await Generate.buildQuiz(material, "generate", currentCount()));
+            });
+          },
+        };
+      };
+      addChoices(bubble, [
+        make("Mixed \u00b7 " + currentCount() + " questions", null),
+        make("Multiple choice only", "Use multiple_choice for every question."),
+        make("Make it hard", "Favour questions that require reasoning, not recall."),
+        {
+          label: "Talk it through",
+          run: function () {
+            withThinking("Thinking\u2026", async function (b) {
+              b.innerHTML = "";
+              const p = document.createElement("p");
+              p.textContent = await Generate.chat(
+                "Here are my study notes. What should I focus on, and what kind of quiz would suit them?\n\n" +
+                  message.slice(0, 2000)
+              );
+              b.appendChild(p);
+            });
+          },
+        },
+      ]);
+      return;
+    }
+
+    // ---- A note about the quiz already on screen
+    if (intent === "refine") {
+      withThinking("Revising your questions\u2026", async function (b) {
+        presentQuiz(b, await Generate.refine(message, currentCount()));
+      });
+      return;
+    }
+
+    // ---- Otherwise: talking
+    withThinking("Thinking\u2026", async function (b) {
+      b.innerHTML = "";
+      const p = document.createElement("p");
+      p.textContent = await Generate.chat(message);
+      b.appendChild(p);
+    });
   });
 
   chatInput.addEventListener("input", function () {
@@ -312,6 +455,13 @@
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       chatForm.requestSubmit();
+    }
+  });
+
+  // Quiz → reshuffle and restart
+  document.getElementById("shuffle-quiz").addEventListener("click", function () {
+    if (QuizEngine.shuffle()) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   });
 

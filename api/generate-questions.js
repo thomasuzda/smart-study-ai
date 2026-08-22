@@ -38,11 +38,6 @@ const LIMITS = {
 const SCHEMA = {
   type: 'object',
   properties: {
-    detected_input_type: {
-      type: 'string',
-      enum: ['study_notes', 'existing_questions'],
-      description: 'Whether the pasted text is study material or already-written quiz questions.',
-    },
     subject: {
       type: 'string',
       description: 'Short subject label for this quiz, e.g. "Digital Logic" or "Cell Biology".',
@@ -63,38 +58,94 @@ const SCHEMA = {
       },
     },
   },
-  required: ['detected_input_type', 'subject', 'questions'],
+  required: ['subject', 'questions'],
   additionalProperties: false,
 };
 
-/* Adapted from the prompt in your NetBeans QuizService. The key idea there —
-   mirror the professor's style rather than writing generic questions — is kept
-   and extended so it also handles plain study notes. */
-const SYSTEM = `You write practice quizzes for a student.
+/* Three different jobs, three prompts. Which one runs is chosen by the person
+   in the chat, not guessed here — pasting a past exam and wanting the real
+   questions is a completely different task from wanting new ones like it. */
 
-First decide what the student pasted:
-- "existing_questions" — already-written quiz or test questions.
-- "study_notes" — notes, a textbook passage, slides, or a study guide.
-
-If existing_questions: write NEW questions identical in style, format,
-difficulty and subject to the ones provided, as though written by the same
-professor for the same course. Mirror their conventions — if they use code,
-use code; if they use mathematical notation, use it the same way. Never reuse
-a provided question verbatim.
-
-If study_notes: write questions covering the most testable material.
-
-Rules for every question:
-- Wrong options must be genuinely plausible to someone who half-learned the
-  material. Never use filler or joke options; a wrong answer nobody would pick
-  teaches nothing.
-- Use true_false only where a binary claim is genuinely the natural form.
+const SHARED_RULES = `Rules for every question:
 - multiple_choice takes exactly 4 options; true_false takes exactly 2.
 - correctIndex is the 0-based position of the right answer within options.
-- Vary which position is correct across the quiz.
 - explanation says why the answer is right, in one or two sentences.
-- Only state something as correct if you are confident it is. If the material
-  is ambiguous, ask about what it does say rather than guessing.`;
+- Only state something as correct if you are confident it is.`;
+
+/* EXTRACT — keep the professor's questions exactly as written. Adapted from
+   the NetBeans prompt but inverted: that one deliberately avoided reusing the
+   originals, this one deliberately preserves them. */
+const SYSTEM_EXTRACT = `You convert a quiz someone pasted into an interactive
+format. The text may be copied from a learning site and contain clutter:
+"Question 7", "Correct 4.00 points out of 4.00", "Flag question", "Select one:",
+"Feedback", "The correct answer is: ...". Strip that clutter.
+
+Preserve each question's wording exactly as written. Do not reword, simplify,
+improve or rewrite them, and do not invent new questions. This person wants to
+practise the real exam.
+
+Work out the correct answer from the text — usually stated after "The correct
+answer is:". If a question's answer genuinely cannot be determined, leave that
+question out rather than guessing.
+
+Keep the original answer options and their wording. Strip any "a." / "B)" style
+letter prefixes, since the app adds its own.
+
+${SHARED_RULES}`;
+
+/* MIRROR — new questions in the same style. The original NetBeans behaviour. */
+const SYSTEM_MIRROR = `You write practice questions modelled on a quiz someone
+pasted from their class.
+
+Write NEW questions identical in style, format, difficulty and subject to the
+ones provided, as though written by the same professor for the same course.
+Mirror their conventions — if they use code, use code; if they use mathematical
+notation, use it the same way. Never reuse a provided question verbatim.
+
+The pasted text may contain clutter from a learning site ("Flag question",
+"points out of", "Feedback"). Ignore it.
+
+Wrong options must be genuinely plausible to someone who half-learned the
+material. Never use filler or joke options; a wrong answer nobody would pick
+teaches nothing. Vary which position is correct across the quiz.
+
+${SHARED_RULES}`;
+
+/* GENERATE — questions from study material. */
+const SYSTEM_GENERATE = `You write practice questions from a student's study
+material: notes, a textbook passage, slides, or a study guide.
+
+Cover the most testable material. Wrong options must be genuinely plausible to
+someone who half-learned it. Never use filler or joke options. Use true_false
+only where a binary claim is genuinely the natural form. Vary which position is
+correct across the quiz.
+
+${SHARED_RULES}`;
+
+/* CHAT — for talking rather than generating. Deliberately steered toward
+   getting to a quiz, since that is what the app is for; a study assistant that
+   chats pleasantly forever is not helping anyone revise. */
+const SYSTEM_CHAT = `You are a study assistant inside a quiz app. The student
+can paste notes or a past quiz and you turn it into practice questions.
+
+Be brief and concrete — two or three sentences unless genuinely asked for more.
+Help them decide what to study and what kind of quiz would suit it: how many
+questions, multiple choice versus true/false, whether to reuse a past exam's
+real questions or write new ones in the same style.
+
+When they seem ready, tell them to paste their notes or quiz into the box. Do
+not write quiz questions yourself in this mode — the app does that.
+
+Write plain prose. The chat window shows your reply as written, so markdown
+markup does not render: asterisks and hashes appear literally as punctuation.
+Use short paragraphs and ordinary sentences instead of bold, headings or
+bulleted lists.`;
+
+const SYSTEMS = {
+  extract: SYSTEM_EXTRACT,
+  mirror: SYSTEM_MIRROR,
+  generate: SYSTEM_GENERATE,
+};
 
 /* A crude in-memory rate limit, keyed by IP. It resets whenever Vercel starts a
    fresh instance, so it is a speed bump rather than a lock — enough to stop
@@ -128,9 +179,10 @@ export default async function handler(req, res) {
     });
   }
 
-  const { material, count, previousQuestions, feedback } = req.body || {};
+  const { material, count, previousQuestions, feedback, mode } = req.body || {};
 
-  if (typeof material !== 'string' || material.trim().length < 20) {
+  const minLength = mode === 'chat' ? 1 : 20;
+  if (typeof material !== 'string' || material.trim().length < minLength) {
     return res.status(400).json({
       error: 'Paste some notes or questions first — at least a sentence or two.',
     });
@@ -139,6 +191,35 @@ export default async function handler(req, res) {
     return res.status(400).json({
       error: `That is longer than this can handle (${material.length.toLocaleString()} characters, limit ${LIMITS.maxMaterialChars.toLocaleString()}).`,
     });
+  }
+
+  // Default to 'generate' so an old client that doesn't send a mode still works.
+  const job = SYSTEMS[mode] ? mode : 'generate';
+
+  /* Conversation mode returns prose, not questions, so it skips the schema and
+     all the question validation below. */
+  if (mode === 'chat') {
+    try {
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const history = Array.isArray(req.body.history) ? req.body.history.slice(-10) : [];
+      const reply = await client.messages.create({
+        model: MODEL,
+        max_tokens: 1000,
+        system: SYSTEM_CHAT,
+        messages: [...history, { role: 'user', content: material }],
+      });
+      if (reply.stop_reason === 'refusal') {
+        return res.status(422).json({ error: 'Claude declined to answer that.' });
+      }
+      const said = reply.content.find((b) => b.type === 'text');
+      return res.status(200).json({
+        mode: 'chat',
+        reply: said ? said.text : 'I did not have anything to add.',
+      });
+    } catch (err) {
+      console.error('chat failed:', err);
+      return res.status(500).json({ error: 'Could not reply. Try again.' });
+    }
   }
 
   const howMany = Math.min(
@@ -150,10 +231,18 @@ export default async function handler(req, res) {
      replays what Claude produced last time plus what the student said was
      wrong, so it can correct that specific thing instead of starting over and
      losing the questions that were already fine. */
+  /* Extract mode takes however many questions the pasted quiz actually has —
+     asking for a fixed number would either invent extras or silently drop
+     some of the professor's questions. */
+  const instruction =
+    job === 'extract'
+      ? 'Convert every question in this quiz that has a determinable answer.'
+      : `Write ${howMany} questions.`;
+
   const messages = [
     {
       role: 'user',
-      content: `Write ${howMany} questions.\n\nPasted material:\n${material}`,
+      content: `${instruction}\n\nPasted material:\n${material}`,
     },
   ];
 
@@ -179,7 +268,7 @@ export default async function handler(req, res) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      system: SYSTEM,
+      system: SYSTEMS[job],
       output_config: { format: { type: 'json_schema', schema: SCHEMA } },
       messages,
     });
@@ -229,7 +318,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      detectedInputType: data.detected_input_type,
+      mode: job,
       subject: data.subject,
       questions,
       dropped: data.questions.length - questions.length,

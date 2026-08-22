@@ -1,54 +1,80 @@
 /* ===========================================================================
-   generate.js — talks to the quiz-generating API
+   generate.js — deciding what a pasted message is, and asking the API for it
 
-   The browser never sees the Anthropic key. It sends study material to our own
-   /api/generate-questions, and that server-side file adds the key. This file is
-   just the messenger, plus the memory needed to make "make them harder" work.
+   The browser never sees the Anthropic key. It sends text to our own
+   /api/generate-questions and that server-side file adds the key.
+
+   The important idea here is that the app asks rather than guesses. Pasting a
+   past exam is ambiguous — you might want the professor's real questions made
+   clickable, or new ones in the same style. Those are different enough that
+   picking one silently is worse than a single tap to say which.
    =========================================================================== */
 
 const Generate = (function () {
-  /* What the last generation produced. Kept so a follow-up like "these are too
-     easy" can be sent as a revision of those questions, rather than starting
-     over from the notes and losing the ones that were already good. */
-  let session = null; // { material, count, questions, subject }
+  let session = null;   // { material, count, questions, subject, mode }
+  let chatHistory = []; // running conversation, for the talking mode
 
-  /* Guessing whether a message is new material or a note about the last quiz
-     is unreliable on its own — a short paste of notes looks exactly like a
-     long instruction. So the guess is deliberately conservative (a revision
-     must be short AND a single line, the shape of "make them harder"), and the
-     UI shows which mode it is in with a way to switch. The visible control is
-     what makes this correct; the heuristic just picks a sensible default. */
   const FEEDBACK_MAX_CHARS = 200;
 
-  function hasQuiz() {
-    return !!(session && session.questions && session.questions.length);
+  /* ---------------------------------------------------------------------
+     WHAT DID THEY JUST PASTE?
+     Done here in the browser rather than by asking Claude: it is instant,
+     free, and a wrong guess costs nothing because the app shows its
+     conclusion and offers the alternative as a button.
+     --------------------------------------------------------------------- */
+  const QUIZ_SIGNALS = [
+    /^\s*[a-dA-D][).]\s+\S/m,            // "a) ..." or "B. ..." option lines
+    /\bselect one\b/i,                    // Moodle
+    /\bthe correct answer is\b/i,
+    /\bquestion\s*\d+\b/i,
+    /\bpoints out of\b/i,
+    /\bflag question\b/i,
+    /\bmultiple choice\b/i,
+    /\btrue or false\b/i,
+  ];
+
+  function looksLikeQuiz(text) {
+    const hits = QUIZ_SIGNALS.filter((re) => re.test(text)).length;
+    // Two independent signals, so one stray "Question 1" in a set of notes
+    // doesn't misclassify the whole thing.
+    return hits >= 2;
   }
 
-  /* Decide what the person meant by this message, without asking them.
-     Returns "new" or "refine". The caller shows which one it chose, so a wrong
-     guess is visible and correctable rather than silently confusing. */
-  /* Words that begin an instruction about the existing questions. Checked
-     against the start of the message, because "make them harder" opens with
-     one and "Mitosis has four phases" does not. */
-  const INSTRUCTION_START =
-    /^(make|add|remove|delete|drop|change|fix|redo|rewrite|regenerate|try|use|avoid|stop|only|include|exclude|give|no|not|fewer|less|more|harder|easier|simpler|shorter|longer|another|again)\b/i;
+  /* Rough count of how many questions are in a pasted quiz, only so the app
+     can say "about 10 questions" when offering the choice. */
+  function countQuestions(text) {
+    const numbered = text.match(/\bquestion\s*\d+\b/gi);
+    if (numbered) {
+      const unique = new Set(numbered.map((m) => m.toLowerCase().replace(/\s+/g, ' ')));
+      return unique.size;
+    }
+    const answers = text.match(/\bthe correct answer is\b/gi);
+    return answers ? answers.length : 0;
+  }
 
-  /* Refers to the questions we just produced rather than to new subject matter. */
+  const INSTRUCTION_START =
+    /^(make|add|remove|delete|drop|change|fix|redo|rewrite|regenerate|try|use|avoid|stop|only|include|exclude|give|no|not|fewer|less|more|harder|easier|simpler|shorter|longer|another|again|shuffle)\b/i;
   const REFERS_BACK = /\b(them|these|those|that one|the questions?|q\d+|question \d+)\b/i;
 
+  /* What should happen with this message?
+       "refine"  — a note about the quiz we just made
+       "choose"  — a pasted quiz; ask which of the two things they want
+       "plan"    — pasted study material; ask what kind of quiz
+       "chat"    — talking, not pasting                                     */
   function classify(message) {
-    if (!hasQuiz()) return 'new';
+    const text = message.trim();
 
-    // Anything long or multi-line is material, not a note about the last quiz.
-    if (message.includes('\n') || message.length > FEEDBACK_MAX_CHARS) return 'new';
+    if (session && text.length <= FEEDBACK_MAX_CHARS &&
+        !text.includes('\n') &&
+        (INSTRUCTION_START.test(text) || REFERS_BACK.test(text))) {
+      return 'refine';
+    }
+    if (looksLikeQuiz(text)) return 'choose';
 
-    // Otherwise require positive evidence that this is an instruction. The
-    // default leans to 'new' on purpose: producing an unwanted fresh quiz is
-    // immediately obvious and one click to undo, whereas silently treating
-    // pasted notes as feedback ignores the settings and confuses everyone.
-    return INSTRUCTION_START.test(message.trim()) || REFERS_BACK.test(message)
-      ? 'refine'
-      : 'new';
+    // Enough substance to build a quiz from is treated as material to plan
+    // around; anything shorter is someone talking to us.
+    const substantial = text.length > 180 || text.split('\n').length > 4;
+    return substantial ? 'plan' : 'chat';
   }
 
   async function callApi(payload) {
@@ -60,24 +86,19 @@ const Generate = (function () {
         body: JSON.stringify(payload),
       });
     } catch (networkError) {
-      // fetch only rejects when the request never completed at all.
-      throw new Error(
-        'Could not reach the server. Check your connection and try again.'
-      );
+      throw new Error('Could not reach the server. Check your connection and try again.');
     }
 
-    /* If the reply isn't JSON, this almost always means the page is being
-       served from somewhere that can't run the API — GitHub Pages hands out
-       files only, so it answers with its own 404 page instead. Saying "the
-       server sent back something unreadable" is technically true and totally
-       unhelpful, so name the actual problem and the way out. */
+    /* A non-JSON reply almost always means this page is served from somewhere
+       that can't run the API — GitHub Pages hands out files only. Name that,
+       rather than reporting an unreadable response. */
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       throw new Error(
-        'Quiz generation isn\'t available on this address (' +
+        "Quiz generation isn't available on this address (" +
           window.location.hostname +
           '). It needs a server to hold the API key, and this one only serves ' +
-          'files. Run the app on your own Mac with start.command and use ' +
+          'files. Run the app on your Mac with start.command and use ' +
           'http://localhost:8765, or deploy it to Vercel to make it work here.'
       );
     }
@@ -88,59 +109,53 @@ const Generate = (function () {
     } catch (parseError) {
       throw new Error('The server sent back something that was not valid JSON.');
     }
-
-    if (!response.ok) {
-      // The API always explains itself in `error`; prefer that over a status code.
-      throw new Error(data.error || `Request failed (${response.status}).`);
-    }
+    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
     return data;
   }
 
-  /* Send a chat message and get back a quiz.
-
-     Resolves with:
-       { mode, quiz, detectedInputType, dropped }
-     where mode is "new" or "refine" so the UI can say which happened. */
-  async function send(message, count, forcedMode) {
-    // forcedMode lets the UI override the guess when the person has told us
-    // explicitly (by starting a new quiz), which always beats inference.
-    const mode = forcedMode || classify(message);
-
-    const payload =
-      mode === 'refine'
-        ? {
-            material: session.material,
-            // Use whatever the picker says now, so changing it and asking for
-            // a revision actually changes how many you get.
-            count: count || session.count,
-            previousQuestions: session.questions,
-            feedback: message,
-          }
-        : { material: message, count: count || 10 };
-
-    const data = await callApi(payload);
-
+  /* Build a quiz. `mode` is one of extract | mirror | generate. */
+  async function buildQuiz(material, mode, count) {
+    const data = await callApi({ material: material, mode: mode, count: count || 10 });
     session = {
-      material: mode === 'refine' ? session.material : message,
-      count: count || (mode === 'refine' ? session.count : 10),
+      material: material,
+      count: count || 10,
       questions: data.questions,
       subject: data.subject,
-    };
-
-    return {
       mode: mode,
-      detectedInputType: data.detectedInputType,
+    };
+    return {
+      mode: data.mode,
       dropped: data.dropped || 0,
-      quiz: {
-        title: data.subject || 'Practice Quiz',
-        subject: data.subject || '',
-        questions: data.questions,
-      },
+      quiz: currentQuiz(),
     };
   }
 
+  /* Revise the quiz already on screen. */
+  async function refine(feedback, count) {
+    const data = await callApi({
+      material: session.material,
+      mode: session.mode,
+      count: count || session.count,
+      previousQuestions: session.questions,
+      feedback: feedback,
+    });
+    session.questions = data.questions;
+    session.subject = data.subject;
+    session.count = count || session.count;
+    return { mode: 'refine', dropped: data.dropped || 0, quiz: currentQuiz() };
+  }
+
+  /* Plain conversation — no questions produced. */
+  async function chat(message) {
+    const data = await callApi({ material: message, mode: 'chat', history: chatHistory });
+    chatHistory.push({ role: 'user', content: message });
+    chatHistory.push({ role: 'assistant', content: data.reply });
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+    return data.reply;
+  }
+
   function currentQuiz() {
-    if (!hasQuiz()) return null;
+    if (!session || !session.questions || !session.questions.length) return null;
     return {
       title: session.subject || 'Practice Quiz',
       subject: session.subject || '',
@@ -148,21 +163,16 @@ const Generate = (function () {
     };
   }
 
-  function reset() {
-    session = null;
-  }
-
-  function subject() {
-    return session ? session.subject : null;
-  }
-
   return {
-    send: send,
-    hasQuiz: hasQuiz,
-    currentQuiz: currentQuiz,
-    reset: reset,
-    subject: subject,
     classify: classify,
-    FEEDBACK_MAX_CHARS: FEEDBACK_MAX_CHARS,
+    looksLikeQuiz: looksLikeQuiz,
+    countQuestions: countQuestions,
+    buildQuiz: buildQuiz,
+    refine: refine,
+    chat: chat,
+    currentQuiz: currentQuiz,
+    hasQuiz: function () { return !!currentQuiz(); },
+    subject: function () { return session ? session.subject : null; },
+    reset: function () { session = null; },
   };
 })();
