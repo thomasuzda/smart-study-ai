@@ -254,7 +254,12 @@
            down a 30-question list. -->
       <div class="quiz__bar">
         <div class="quiz__bar-inner">
-          <span id="question-counter">10 questions</span>
+          <span class="quiz__bar-left">
+            <button class="quiz__back" type="button" id="quiz-back">
+              <span aria-hidden="true">&larr;</span> Chat
+            </button>
+            <span id="question-counter">10 questions</span>
+          </span>
           <span class="quiz__meta-right">
             <button class="quiz__shuffle" type="button" id="shuffle-quiz">Shuffle</button>
             <span id="score-so-far"></span>
@@ -292,7 +297,7 @@
 
       <div class="results__actions">
         <button class="btn btn--primary" type="button" id="retry-quiz">Try Again</button>
-        <button class="btn btn--secondary" type="button" id="results-home">Home</button>
+        <button class="btn btn--secondary" type="button" id="results-home">Back to chat</button>
       </div>
 
       <div class="review" id="review"></div>

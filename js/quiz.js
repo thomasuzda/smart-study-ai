@@ -296,6 +296,7 @@ const QuizEngine = (function () {
     submit: submit,
     shuffle: shuffle,
     getQuiz: function () { return quiz; },
+    answeredCount: answeredCount,
     getMode: function () { return mode; },
     isSubmitted: function () { return submitted; },
   };

@@ -487,6 +487,25 @@
     }
   });
 
+  /* Quiz → back to the chat. If the quiz is underway, this warns first: the
+     engine keeps its state in memory, but the only route back in is the Start
+     button in the chat, which begins the quiz again from scratch. Losing
+     answers silently would be worse than an extra tap. */
+  document.getElementById("quiz-back").addEventListener("click", function () {
+    const quiz = QuizEngine.getQuiz();
+    const started = quiz && !QuizEngine.isSubmitted() && QuizEngine.answeredCount() > 0;
+    if (started) {
+      const ok = window.confirm(
+        "Leave this quiz? Your answers so far won't be kept."
+      );
+      if (!ok) return;
+    }
+    showScreen("home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const box = document.getElementById("chat-input");
+    if (box) box.focus();
+  });
+
   // Quiz → submit. Two buttons (sticky bar and end of list) do the same thing.
   ["submit-quiz", "submit-quiz-bottom"].forEach(function (id) {
     const button = document.getElementById(id);

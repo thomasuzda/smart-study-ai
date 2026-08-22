@@ -1668,3 +1668,30 @@ h3 {
     padding-bottom: 18vh;
   }
 }
+
+/* Back-to-chat button in the quiz bar. */
+.quiz__bar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.quiz__back {
+  appearance: none;
+  font: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.quiz__back:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
