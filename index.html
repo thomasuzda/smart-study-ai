@@ -77,17 +77,19 @@
          wins. "Start studying" jumps to the chat.
          ==================================================================== -->
     <section class="screen landing" id="screen-landing">
-      <!-- The three.js particle field renders into this. aria-hidden because
-           it is pure decoration and has nothing to announce. -->
-      <div class="void-field" id="void-field" aria-hidden="true"></div>
-
       <div class="landing__hero">
+        <!-- The gradient ring renders into this. aria-hidden because it is
+             decoration; the real <h1> below carries the heading for screen
+             readers. Scoped to the hero so the ring centres on the visible
+             area rather than on the whole scrollable section. -->
+        <div class="void-field" id="void-field" aria-hidden="true"></div>
+
         <span class="landing__badge rise rise--1">
           <span class="landing__badge-dot" aria-hidden="true"></span>
           Powered by Claude
         </span>
 
-        <h1 class="landing__title rise rise--2">Smart Study AI</h1>
+        <h1 class="landing__title sr-only">Smart Study AI</h1>
 
         <p class="landing__tagline rise rise--3">
           Paste your notes, your slides, or a quiz your professor already gave
@@ -372,17 +374,7 @@
        exists by the time they run — otherwise getElementById finds nothing.
        Order matters: settings, then auth, then data, then engine, then UI
        (which wires everything together and must go last). -->
-  <!-- Tells the browser where the bare name "three" resolves to, so
-       js/void-field.js can use a normal import with no build step. Pinned to
-       an exact version so a future three.js release can't change the page. -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.180.0/build/three.module.js"
-    }
-  }
-  </script>
-  <script type="module" src="js/void-field.js"></script>
+  <script src="js/gradient-ring.js"></script>
 
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
