@@ -50,6 +50,9 @@
     // aria-current is a real accessibility attribute (it tells a screen
     // reader "this is the page you're on"), and the CSS styles it directly —
     // so the visual state and the announced state can't fall out of sync.
+    // The landing page's particle field should only run while it's on screen.
+    if (window.VoidField) window.VoidField.sync();
+
     document.querySelectorAll(".menu__item").forEach(function (item) {
       if (item.dataset.screen === name) {
         item.setAttribute("aria-current", "page");

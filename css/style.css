@@ -1315,3 +1315,33 @@ h3 {
   .landing { padding: 2.5rem 1.25rem 3rem; }
   .landing__title { font-size: calc(2.25rem * var(--font-scale)); }
 }
+
+/* --------------------------------------------------------------------------
+   VOID FIELD
+   The three.js particle canvas behind the landing page. Sits underneath the
+   content and ignores the pointer, so it can never intercept a click.
+   -------------------------------------------------------------------------- */
+.landing {
+  position: relative; /* makes this the anchor the canvas positions against */
+  z-index: 0;
+}
+
+.void-field {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.void-field canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Keep the landing content above the canvas. */
+.landing > *:not(.void-field) {
+  position: relative;
+  z-index: 1;
+}
