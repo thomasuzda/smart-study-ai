@@ -66,11 +66,27 @@ const Generate = (function () {
       );
     }
 
+    /* If the reply isn't JSON, this almost always means the page is being
+       served from somewhere that can't run the API — GitHub Pages hands out
+       files only, so it answers with its own 404 page instead. Saying "the
+       server sent back something unreadable" is technically true and totally
+       unhelpful, so name the actual problem and the way out. */
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(
+        'Quiz generation isn\'t available on this address (' +
+          window.location.hostname +
+          '). It needs a server to hold the API key, and this one only serves ' +
+          'files. Run the app on your own Mac with start.command and use ' +
+          'http://localhost:8765, or deploy it to Vercel to make it work here.'
+      );
+    }
+
     let data;
     try {
       data = await response.json();
     } catch (parseError) {
-      throw new Error('The server sent back something unreadable.');
+      throw new Error('The server sent back something that was not valid JSON.');
     }
 
     if (!response.ok) {
