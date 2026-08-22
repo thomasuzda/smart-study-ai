@@ -16,6 +16,7 @@
      app from having to know about "screen-" prefixes.
      ------------------------------------------------------------------------ */
   const SCREENS = {
+    landing: "screen-landing",
     home: "screen-home",
     auth: "screen-auth",
     quiz: "screen-quiz",
@@ -130,6 +131,15 @@
       showScreen(item.dataset.screen);
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  });
+
+  // Landing → the chat
+  document.getElementById("landing-start").addEventListener("click", function () {
+    showScreen("home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Put the cursor in the box, so you can paste straight away.
+    const box = document.getElementById("chat-input");
+    if (box) box.focus();
   });
 
   /* ------------------------------------------------------------------------
@@ -519,7 +529,7 @@
   // Land on home, then connect to the account system. init() is async because
   // restoring a session means asking the server — doing it after the first
   // paint means the app appears instantly instead of waiting on the network.
-  showScreen("home");
+  showScreen("landing");
   renderAuthState();
   Auth.init();
 })();

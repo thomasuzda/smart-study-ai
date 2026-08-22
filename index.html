@@ -37,7 +37,11 @@
   <header class="menu">
     <span class="menu__brand">Smart Study AI</span>
 
-    <button class="menu__item" type="button" data-screen="home">Home</button>
+    <button class="menu__item" type="button" data-screen="landing">Home</button>
+    <button class="menu__item" type="button" data-screen="home">Study</button>
+    <!-- My Files had no button at all after the chat redesign, which left the
+         whole screen stranded. Restored so saved quizzes stay reachable. -->
+    <button class="menu__item" type="button" data-screen="files">My Files</button>
     <!-- Text size control. aria-label gives screen readers a real description,
          since "A−" alone doesn't say what it does. -->
     <div class="menu__sizer" role="group" aria-label="Text size">
@@ -65,6 +69,61 @@
        like it's bouncing the user between pages.
        ====================================================================== -->
   <main>
+    <!-- ====================================================================
+         SCREEN 0 — LANDING
+         The first thing a new visitor sees. Every claim here is something the
+         app actually does today; nothing is advertised that isn't built, since
+         a promise the product breaks on the first click costs more than it
+         wins. "Start studying" jumps to the chat.
+         ==================================================================== -->
+    <section class="screen landing" id="screen-landing">
+      <span class="landing__badge rise rise--1">
+        <span class="landing__badge-dot" aria-hidden="true"></span>
+        Powered by Claude
+      </span>
+
+      <h1 class="landing__title rise rise--2">Smart Study AI</h1>
+
+      <p class="landing__tagline rise rise--3">
+        Paste your notes, your slides, or a quiz your professor already gave
+        you. Get practice questions in seconds.
+      </p>
+
+      <div class="landing__cta rise rise--4">
+        <button class="btn btn--primary btn--large" type="button" id="landing-start">
+          Start studying
+        </button>
+      </div>
+
+      <ul class="landing__features rise rise--5">
+        <li class="feature">
+          <h3>Notes to questions</h3>
+          <p>Paste a chapter or your class notes and get practice questions on
+             the parts worth testing.</p>
+        </li>
+        <li class="feature">
+          <h3>Sounds like your class</h3>
+          <p>Paste an old quiz and it writes new questions in the same style,
+             as if from the same professor.</p>
+        </li>
+        <li class="feature">
+          <h3>Tell it what's wrong</h3>
+          <p>Say "make them harder" or "no true/false" and it rewrites them
+             until they're what you wanted.</p>
+        </li>
+        <li class="feature">
+          <h3>Learn from mistakes</h3>
+          <p>Every answer comes with an explanation, so a wrong one teaches you
+             something instead of just costing a point.</p>
+        </li>
+      </ul>
+
+      <p class="landing__note rise rise--6">
+        Free to use &middot; No account needed &middot; Questions are written by
+        AI and can be wrong
+      </p>
+    </section>
+
     <section class="screen chat-screen" id="screen-home">
       <div class="chat-shell">
         <div class="chat-intro">

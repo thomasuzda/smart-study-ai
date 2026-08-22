@@ -1188,3 +1188,130 @@ h3 {
   padding: 0.4rem 0.5rem 0.4rem 0.9rem;
   margin-bottom: 0.5rem;
 }
+
+/* --------------------------------------------------------------------------
+   LANDING PAGE
+   The first screen a new visitor sees. Same restraint as the rest of the app:
+   one accent colour, generous space, no gradients or emoji.
+   -------------------------------------------------------------------------- */
+.landing {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 5rem;
+  text-align: center;
+}
+
+/* Small capsule above the title. */
+.landing__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: calc(0.75rem * var(--font-scale));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.375rem 0.875rem;
+  margin-bottom: 1.75rem;
+}
+
+.landing__badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent);
+}
+
+.landing__title {
+  font-size: calc(3.25rem * var(--font-scale));
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-bottom: 1rem;
+}
+
+.landing__tagline {
+  font-size: calc(1.1875rem * var(--font-scale));
+  color: var(--text-muted);
+  max-width: 32rem;
+  margin: 0 auto 2.5rem;
+  line-height: 1.5;
+}
+
+.landing__cta {
+  margin-bottom: 4rem;
+}
+
+/* Feature cards. auto-fit means they reflow from four across to two to one
+   as the window narrows, with no separate mobile rules. */
+.landing__features {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  text-align: left;
+  margin-bottom: 3rem;
+}
+
+.feature {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.5rem;
+  transition: border-color 0.25s var(--ease), transform 0.25s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+
+.feature:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.feature h3 {
+  font-size: calc(1rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.5rem;
+}
+
+.feature p {
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.landing__note {
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+}
+
+/* The staggered entrance, reused from the old home screen. */
+.rise {
+  opacity: 0;
+  animation: rise-in 0.55s var(--ease) both;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.rise--1 { animation-delay: 0.00s; }
+.rise--2 { animation-delay: 0.08s; }
+.rise--3 { animation-delay: 0.16s; }
+.rise--4 { animation-delay: 0.24s; }
+.rise--5 { animation-delay: 0.32s; }
+.rise--6 { animation-delay: 0.40s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; opacity: 1; transform: none; }
+  .feature:hover { transform: none; }
+}
+
+@media (max-width: 600px) {
+  .landing { padding: 2.5rem 1.25rem 3rem; }
+  .landing__title { font-size: calc(2.25rem * var(--font-scale)); }
+}
