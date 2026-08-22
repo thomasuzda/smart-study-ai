@@ -1105,3 +1105,86 @@ h3 {
     font-size: calc(0.8125rem * var(--font-scale));
   }
 }
+
+/* --------------------------------------------------------------------------
+   CHAT — generated quiz results
+   The composer now holds a question-count picker alongside the send button,
+   and assistant replies can carry a button plus explanatory notes.
+   -------------------------------------------------------------------------- */
+
+.chat-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.chat-count select {
+  font: inherit;
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.375rem 0.625rem;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.chat-count select:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* The bubble body wraps text plus any buttons, so they stack tidily. */
+.chat-message__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0; /* lets long pasted text wrap instead of stretching the bubble */
+}
+
+.chat-start {
+  align-self: flex-start;
+}
+
+.chat-note {
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+}
+
+.chat-error {
+  font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--wrong);
+}
+
+/* A disabled composer while a request is in flight, so it's obvious that
+   pressing send again won't help. */
+.chat-composer textarea:disabled,
+.chat-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The chip that says what a follow-up message will do. */
+
+/* Setting display on an element that also uses the `hidden` attribute breaks
+   hidden, because a display rule outranks the browser's built-in
+   [hidden] { display: none }. This restores it. Any element in this file that
+   JS toggles with .hidden needs the same guard. */
+.chat-context[hidden] {
+  display: none;
+}
+
+.chat-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: calc(0.8125rem * var(--font-scale));
+  color: var(--text-muted);
+  background-color: var(--surface-alt);
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 0.5rem 0.4rem 0.9rem;
+  margin-bottom: 0.5rem;
+}

@@ -80,14 +80,34 @@
           </article>
         </div>
 
+        <!-- Shows which quiz a follow-up message will revise, plus a way out.
+             Without this, "make them harder" and a fresh paste are
+             indistinguishable to the user. -->
+        <div class="chat-context" id="chat-context" hidden>
+          <span id="chat-context-label"></span>
+          <button class="link-button" type="button" id="chat-new">Start a new quiz</button>
+        </div>
+
         <form class="chat-composer" id="chat-form">
           <label class="sr-only" for="chat-input">Message Smart Study AI</label>
-          <textarea id="chat-input" rows="1" placeholder="Message Smart Study AI…"></textarea>
-          <button class="chat-send" type="submit" aria-label="Send message">
-            <span aria-hidden="true">↑</span>
-          </button>
+          <textarea id="chat-input" rows="1" placeholder="Paste your notes or an existing quiz…"></textarea>
+          <div class="chat-controls">
+            <label class="chat-count" for="chat-count">
+              <span class="sr-only">Number of questions</span>
+              <select id="chat-count">
+                <option value="5">5 questions</option>
+                <option value="10" selected>10 questions</option>
+                <option value="15">15 questions</option>
+                <option value="20">20 questions</option>
+                <option value="30">30 questions</option>
+              </select>
+            </label>
+            <button class="chat-send" type="submit" aria-label="Send message">
+              <span aria-hidden="true">↑</span>
+            </button>
+          </div>
         </form>
-        <p class="chat-disclaimer">AI responses will appear here once your AI connection is set up.</p>
+        <p class="chat-disclaimer">Questions are written by Claude and can be wrong — check anything that matters.</p>
       </div>
     </section>
 
@@ -291,6 +311,7 @@
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/quiz.js"></script>
+  <script src="js/generate.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>

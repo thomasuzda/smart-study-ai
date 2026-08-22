@@ -134,38 +134,172 @@
 
   /* ------------------------------------------------------------------------
      STUDY CHAT
-     The visible chat is ready for a real AI endpoint. Until that connection
-     exists, it acknowledges messages honestly rather than pretending a model
-     generated an answer.
+     Paste notes or an existing quiz and this turns them into questions. A
+     short follow-up ("make them harder") revises the last set instead of
+     starting over; a long paste is treated as new material. The reply always
+     says which of the two it did, so a wrong guess is visible rather than
+     quietly confusing.
      ------------------------------------------------------------------------ */
   const chatForm = document.getElementById("chat-form");
   const chatInput = document.getElementById("chat-input");
   const chatMessages = document.getElementById("chat-messages");
+  const chatSend = document.querySelector(".chat-send");
+  const countSelect = document.getElementById("chat-count");
+  const chatContext = document.getElementById("chat-context");
+  const chatContextLabel = document.getElementById("chat-context-label");
+  const chatNewButton = document.getElementById("chat-new");
 
-  chatForm.addEventListener("submit", function (event) {
+  /* Keep the chip in sync with whether a quiz is loaded. When one is, a short
+     follow-up revises it — and this is what tells the user that. */
+  let forceNewNext = false;
+
+  function renderChatContext() {
+    if (Generate.hasQuiz() && !forceNewNext) {
+      chatContextLabel.textContent =
+        "Follow-ups will revise your " + (Generate.subject() || "quiz") + " questions";
+      chatContext.hidden = false;
+    } else {
+      chatContext.hidden = true;
+    }
+  }
+
+  chatNewButton.addEventListener("click", function () {
+    // Explicit beats inferred: the next message starts a fresh quiz whatever
+    // its length, and the count picker applies again.
+    forceNewNext = true;
+    Generate.reset();
+    renderChatContext();
+    chatInput.focus();
+  });
+
+  /* Add a message bubble. Text is set with textContent, never innerHTML, so
+     pasted material containing < or & can't break the page or inject markup. */
+  function addMessage(role, text) {
+    const article = document.createElement("article");
+    article.className = "chat-message chat-message--" + role;
+    if (role === "assistant") {
+      const avatar = document.createElement("span");
+      avatar.className = "chat-avatar";
+      avatar.setAttribute("aria-hidden", "true");
+      avatar.textContent = "\u2726";
+      article.appendChild(avatar);
+    }
+    const body = document.createElement("div");
+    body.className = "chat-message__body";
+    const p = document.createElement("p");
+    p.textContent = text;
+    body.appendChild(p);
+    article.appendChild(body);
+    chatMessages.appendChild(article);
+    article.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return body;
+  }
+
+  /* Turn the last assistant bubble into one that offers to start the quiz. */
+  function addStartButton(container, questionCount) {
+    const button = document.createElement("button");
+    button.className = "btn btn--primary chat-start";
+    button.type = "button";
+    button.textContent = "Start quiz \u00b7 " + questionCount + " questions";
+    button.addEventListener("click", function () {
+      const quiz = Generate.currentQuiz();
+      if (quiz && QuizEngine.start(quiz)) {
+        showScreen("quiz");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+    container.appendChild(button);
+  }
+
+  let busy = false;
+
+  function setBusy(state) {
+    busy = state;
+    chatSend.disabled = state;
+    chatInput.disabled = state;
+  }
+
+  chatForm.addEventListener("submit", async function (event) {
     event.preventDefault();
+    if (busy) return;
+
     const message = chatInput.value.trim();
     if (!message) return;
 
-    const userMessage = document.createElement("article");
-    userMessage.className = "chat-message chat-message--user";
-    const userText = document.createElement("p");
-    userText.textContent = message;
-    userMessage.appendChild(userText);
-    chatMessages.appendChild(userMessage);
-
-    const notice = document.createElement("article");
-    notice.className = "chat-message chat-message--assistant";
-    notice.innerHTML = '<span class="chat-avatar" aria-hidden="true">✦</span><p>Your AI study assistant isn’t connected yet. Add your AI connection and I’ll be ready to help with this.</p>';
-    chatMessages.appendChild(notice);
+    addMessage("user", message);
     chatInput.value = "";
     chatInput.style.height = "auto";
-    notice.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    setBusy(true);
+    const thinking = addMessage(
+      "assistant",
+      !forceNewNext && Generate.classify(message) === "refine"
+        ? "Revising your questions\u2026"
+        : "Reading that and writing questions\u2026"
+    );
+
+    try {
+      const count = countSelect ? Number(countSelect.value) : 10;
+      const result = await Generate.send(message, count, forceNewNext ? "new" : null);
+      forceNewNext = false;
+
+      // Replace the placeholder text with the real outcome.
+      thinking.innerHTML = "";
+      const summary = document.createElement("p");
+      const n = result.quiz.questions.length;
+      if (result.mode === "refine") {
+        summary.textContent = "Revised \u2014 " + n + " questions on " + result.quiz.subject + ".";
+      } else {
+        const kind =
+          result.detectedInputType === "existing_questions"
+            ? "Read that as an existing quiz, so these are new questions in the same style"
+            : "Read that as study notes";
+        summary.textContent = kind + " \u2014 " + n + " questions on " + result.quiz.subject + ".";
+      }
+      thinking.appendChild(summary);
+
+      // Be honest when the server discarded malformed questions.
+      if (result.dropped > 0) {
+        const note = document.createElement("p");
+        note.className = "chat-note";
+        note.textContent =
+          result.dropped +
+          (result.dropped === 1 ? " question came" : " questions came") +
+          " back malformed and was left out.";
+        thinking.appendChild(note);
+      }
+
+      addStartButton(thinking, n);
+      renderChatContext();
+
+      const hint = document.createElement("p");
+      hint.className = "chat-note";
+      hint.textContent =
+        "Not right? Tell me what to change \u2014 for example \u201cmake them harder\u201d or \u201cno true/false\u201d.";
+      thinking.appendChild(hint);
+    } catch (error) {
+      thinking.innerHTML = "";
+      const p = document.createElement("p");
+      p.className = "chat-error";
+      p.textContent = error.message;
+      thinking.appendChild(p);
+    } finally {
+      setBusy(false);
+      chatInput.focus();
+    }
   });
 
   chatInput.addEventListener("input", function () {
     chatInput.style.height = "auto";
     chatInput.style.height = Math.min(chatInput.scrollHeight, 160) + "px";
+  });
+
+  // Enter sends; Shift+Enter makes a new line, as in any chat app.
+  chatInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      chatForm.requestSubmit();
+    }
   });
 
   // Quiz → next question (or the results screen on the last one)
