@@ -30,11 +30,173 @@ const GradientRing = (function () {
      unreadable once a tile is scaled down and rotated on the far side of the
      ring. Ordered so related subjects aren't adjacent, since neighbouring
      tiles overlap and similar words blur together. */
-  const SUBJECTS = [
-    'BIOLOGY', 'CALCULUS', 'HISTORY', 'CHEMISTRY',
-    'PHYSICS', 'SPANISH', 'ANATOMY', 'STATISTICS',
-    'PSYCHOLOGY', 'ECONOMICS', 'LOGIC', 'NURSING',
-  ];
+  /* Each subject gets a drawn symbol rather than only its name. An icon is
+     recognised at a glance; a word has to be read, which is a lot to ask of a
+     tile that is small, tilted and drifting past.
+
+     Drawn with canvas paths in a normalised -1..1 box and scaled to the tile,
+     so they stay crisp at any size — no image files, no icon font, nothing to
+     download. Stroked rather than filled: thin line work stays legible on top
+     of a bright gradient where a solid shape would just read as a blob. */
+  const ICONS = {
+    // DNA — two crossing strands with rungs between them
+    BIOLOGY: function (c) {
+      // Two strands, one a half-turn out of phase with the other.
+      for (const dir of [1, -1]) {
+        c.beginPath();
+        for (let t = 0; t <= 1.001; t += 0.04) {
+          const y = -0.95 + t * 1.9;
+          const x = dir * 0.5 * Math.sin(t * Math.PI * 2 + Math.PI / 2);
+          t === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+      // Rungs only where the strands are far apart — at a crossing point the
+      // rung has no length and simply disappears, which is what made this
+      // read as a stack of triangles rather than a helix.
+      for (const t of [0.06, 0.2, 0.8, 0.94]) {
+        const y = -0.95 + t * 1.9;
+        const x = 0.5 * Math.sin(t * Math.PI * 2 + Math.PI / 2);
+        c.beginPath(); c.moveTo(-x, y); c.lineTo(x, y); c.stroke();
+      }
+    },
+
+    // The integral sign
+    CALCULUS: function (c) {
+      c.beginPath();
+      c.moveTo(0.45, -0.85);
+      c.bezierCurveTo(0.45, -1.15, -0.2, -1.0, -0.2, -0.45);
+      c.lineTo(-0.2, 0.45);
+      c.bezierCurveTo(-0.2, 1.0, -0.85, 1.15, -0.85, 0.85);
+      c.stroke();
+    },
+
+    // A classical column
+    HISTORY: function (c) {
+      c.beginPath(); c.moveTo(-0.8, -0.8); c.lineTo(0.8, -0.8); c.stroke();
+      c.beginPath(); c.moveTo(-0.8, 0.85); c.lineTo(0.8, 0.85); c.stroke();
+      for (const x of [-0.45, 0, 0.45]) {
+        c.beginPath(); c.moveTo(x, -0.65); c.lineTo(x, 0.7); c.stroke();
+      }
+    },
+
+    // Conical flask
+    CHEMISTRY: function (c) {
+      c.beginPath();
+      c.moveTo(-0.28, -0.9); c.lineTo(-0.28, -0.25);
+      c.lineTo(-0.8, 0.75);
+      c.quadraticCurveTo(-0.9, 0.95, -0.65, 0.95);
+      c.lineTo(0.65, 0.95);
+      c.quadraticCurveTo(0.9, 0.95, 0.8, 0.75);
+      c.lineTo(0.28, -0.25); c.lineTo(0.28, -0.9);
+      c.stroke();
+      c.beginPath(); c.moveTo(-0.45, -0.9); c.lineTo(0.45, -0.9); c.stroke();
+    },
+
+    // Atom — nucleus with orbits
+    PHYSICS: function (c) {
+      c.beginPath(); c.arc(0, 0, 0.16, 0, Math.PI * 2); c.fill();
+      for (const a of [0, Math.PI / 3, -Math.PI / 3]) {
+        c.save(); c.rotate(a);
+        c.beginPath(); c.ellipse(0, 0, 0.95, 0.4, 0, 0, Math.PI * 2); c.stroke();
+        c.restore();
+      }
+    },
+
+    // Speech bubble
+    SPANISH: function (c) {
+      c.beginPath();
+      c.moveTo(-0.85, -0.2);
+      c.quadraticCurveTo(-0.85, -0.8, -0.2, -0.8);
+      c.lineTo(0.35, -0.8);
+      c.quadraticCurveTo(0.9, -0.8, 0.9, -0.2);
+      c.quadraticCurveTo(0.9, 0.35, 0.35, 0.35);
+      c.lineTo(-0.25, 0.35);
+      c.lineTo(-0.6, 0.85);
+      c.lineTo(-0.55, 0.35);
+      c.quadraticCurveTo(-0.85, 0.3, -0.85, -0.2);
+      c.closePath(); c.stroke();
+    },
+
+    // Heart
+    ANATOMY: function (c) {
+      c.beginPath();
+      c.moveTo(0, 0.85);
+      c.bezierCurveTo(-1.15, 0.05, -0.7, -0.9, 0, -0.35);
+      c.bezierCurveTo(0.7, -0.9, 1.15, 0.05, 0, 0.85);
+      c.closePath(); c.stroke();
+    },
+
+    // Bar chart
+    STATISTICS: function (c) {
+      const bars = [[-0.6, 0.15], [0, -0.4], [0.6, -0.75]];
+      for (const [x, top] of bars) {
+        c.beginPath();
+        c.moveTo(x, 0.8); c.lineTo(x, top);
+        c.stroke();
+      }
+      c.beginPath(); c.moveTo(-0.9, 0.85); c.lineTo(0.9, 0.85); c.stroke();
+    },
+
+    // Head in profile with a spiral inside
+    PSYCHOLOGY: function (c) {
+      /* A head in profile, with no neck. Earlier versions drew one, and at
+         tile size the two little vertical lines read as a stick — the whole
+         thing looked like a balloon rather than a head. The silhouette alone
+         is clearer. */
+      c.beginPath();
+      c.moveTo(0.15, 0.9);
+      c.quadraticCurveTo(-0.95, 0.75, -0.95, -0.15);
+      c.quadraticCurveTo(-0.95, -0.95, -0.05, -0.95);
+      c.quadraticCurveTo(0.9, -0.95, 0.9, -0.05);
+      c.quadraticCurveTo(0.9, 0.55, 0.15, 0.9);
+      c.closePath();
+      c.stroke();
+      // A spiral for the mind, sitting inside the skull.
+      c.beginPath();
+      for (let t = 0; t < Math.PI * 2.8; t += 0.14) {
+        const r = 0.05 + t * 0.055;
+        const x = -0.05 + Math.cos(t) * r;
+        const y = -0.15 + Math.sin(t) * r;
+        t === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+      }
+      c.stroke();
+    },
+
+    // Rising line with an arrow head
+    ECONOMICS: function (c) {
+      c.beginPath();
+      c.moveTo(-0.85, 0.6); c.lineTo(-0.25, -0.05);
+      c.lineTo(0.15, 0.35); c.lineTo(0.8, -0.6);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(0.35, -0.6); c.lineTo(0.85, -0.6); c.lineTo(0.85, -0.1);
+      c.stroke();
+    },
+
+    // A logic gate with two inputs and an output
+    LOGIC: function (c) {
+      c.beginPath();
+      c.moveTo(-0.3, -0.7); c.lineTo(0.15, -0.7);
+      c.arc(0.15, 0, 0.7, -Math.PI / 2, Math.PI / 2);
+      c.lineTo(-0.3, 0.7); c.closePath(); c.stroke();
+      c.beginPath(); c.moveTo(-0.85, -0.35); c.lineTo(-0.3, -0.35); c.stroke();
+      c.beginPath(); c.moveTo(-0.85, 0.35); c.lineTo(-0.3, 0.35); c.stroke();
+      c.beginPath(); c.moveTo(0.85, 0); c.lineTo(0.95, 0); c.stroke();
+    },
+
+    // Medical cross
+    NURSING: function (c) {
+      c.beginPath();
+      c.moveTo(-0.28, -0.85); c.lineTo(0.28, -0.85); c.lineTo(0.28, -0.28);
+      c.lineTo(0.85, -0.28); c.lineTo(0.85, 0.28); c.lineTo(0.28, 0.28);
+      c.lineTo(0.28, 0.85); c.lineTo(-0.28, 0.85); c.lineTo(-0.28, 0.28);
+      c.lineTo(-0.85, 0.28); c.lineTo(-0.85, -0.28); c.lineTo(-0.28, -0.28);
+      c.closePath(); c.stroke();
+    },
+  };
+
+  const SUBJECTS = Object.keys(ICONS);
 
   /* Tile gradients. Blues and cyans to match the app, with two warm tiles so
      the ring has a focal point instead of reading as one flat colour. */
@@ -122,12 +284,43 @@ const GradientRing = (function () {
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
 
-    /* The subject name. Some of these gradients are pale at one corner, so the
-       label gets a dark scrim behind it rather than relying on the shadow —
-       white-on-cyan is unreadable without one. */
+    /* The symbol, drawn in the upper part of the tile. A translucent dark
+       disc sits behind it for the same reason the label has a scrim: several
+       of these gradients go pale, and white line work vanishes on them. */
+    if (label && ICONS[label]) {
+      const cx = size / 2;
+      const cy = size * 0.42;
+      const unit = size * 0.17;
+
+      g.save();
+      g.beginPath();
+      g.arc(cx, cy, unit * 1.85, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(4, 8, 16, 0.34)';
+      g.fill();
+      g.restore();
+
+      g.save();
+      g.translate(cx, cy);
+      g.scale(unit, unit);
+      // Stroke width is in the scaled space, so divide to keep it constant
+      // regardless of tile size.
+      g.lineWidth = 0.16;
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      g.strokeStyle = 'rgba(255,255,255,0.95)';
+      g.fillStyle = 'rgba(255,255,255,0.95)';
+      g.shadowColor = 'rgba(0,0,0,0.5)';
+      g.shadowBlur = 0.35;
+      ICONS[label](g);
+      g.restore();
+    }
+
+    /* The subject name, under the symbol. Some of these gradients are pale at
+       one corner, so the label gets a dark scrim rather than relying on the
+       shadow — white-on-cyan is unreadable without one. */
     if (label) {
       const pad = size * 0.1;
-      let fontSize = size * 0.13;
+      let fontSize = size * 0.105;
       g.font = '600 ' + fontSize + 'px -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
 
       // Shrink long words to fit rather than letting them run off the tile.
@@ -138,7 +331,7 @@ const GradientRing = (function () {
       }
 
       const textWidth = g.measureText(label).width;
-      const barHeight = fontSize * 1.9;
+      const barHeight = fontSize * 2.0;
       const barY = size - barHeight - pad * 0.6;
 
       g.fillStyle = 'rgba(4, 8, 16, 0.55)';
