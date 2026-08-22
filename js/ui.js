@@ -258,16 +258,38 @@
     container.appendChild(row);
   }
 
+  function launchQuiz(quiz, feedbackMode) {
+    if (QuizEngine.start(quiz, feedbackMode)) {
+      showScreen("quiz");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  /* Offer the quiz, and ask how feedback should work before starting. The two
+     modes suit different situations — learning material you don't know yet
+     versus testing whether you actually know it — so this is a real choice
+     rather than a setting to bury. */
   function addStartButton(container, quiz) {
     const button = document.createElement("button");
     button.className = "btn btn--primary chat-start";
     button.type = "button";
     button.textContent = "Start quiz \u00b7 " + quiz.questions.length + " questions";
     button.addEventListener("click", function () {
-      if (QuizEngine.start(quiz)) {
-        showScreen("quiz");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
+      button.remove();
+      const ask = document.createElement("p");
+      ask.className = "chat-note";
+      ask.textContent = "When should I show you the answers?";
+      container.appendChild(ask);
+      addChoices(container, [
+        {
+          label: "As I answer",
+          run: function () { launchQuiz(quiz, "instant"); },
+        },
+        {
+          label: "After I submit",
+          run: function () { launchQuiz(quiz, "after"); },
+        },
+      ]);
     });
     container.appendChild(button);
   }
@@ -465,9 +487,10 @@
     }
   });
 
-  // Quiz → next question (or the results screen on the last one)
-  document.getElementById("next-question").addEventListener("click", function () {
-    QuizEngine.next();
+  // Quiz → submit. Two buttons (sticky bar and end of list) do the same thing.
+  ["submit-quiz", "submit-quiz-bottom"].forEach(function (id) {
+    const button = document.getElementById(id);
+    if (button) button.addEventListener("click", function () { QuizEngine.submit(); });
   });
 
   // Results → replay the same quiz
@@ -475,7 +498,7 @@
     // getQuiz() returns whatever was last played, so "Try Again" will work
     // for AI-generated quizzes too without any change here.
     const lastQuiz = QuizEngine.getQuiz();
-    if (lastQuiz && QuizEngine.start(lastQuiz)) {
+    if (lastQuiz && QuizEngine.start(lastQuiz, QuizEngine.getMode())) {
       showScreen("quiz");
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -674,6 +697,76 @@
      STARTUP
      ------------------------------------------------------------------------ */
   // Expose the router so quiz.js can switch to the results screen.
+  /* ------------------------------------------------------------------------
+     RESULTS
+     Called by quiz.js when a quiz is submitted. Kept here rather than in the
+     engine so the engine only knows about questions and answers, and this file
+     stays the only place that decides what's on screen.
+     ------------------------------------------------------------------------ */
+  window.showResults = function (outcome) {
+    const score = outcome.score;
+    const total = outcome.total;
+    const percent = Math.round((score / total) * 100);
+
+    document.getElementById("final-score").textContent = score + "/" + total;
+
+    const headline =
+      percent === 100 ? "Every one right" :
+      percent >= 80  ? "Strong" :
+      percent >= 60  ? "Getting there" :
+      percent >= 40  ? "Worth another pass" :
+                       "Time to review";
+    document.getElementById("results-headline").textContent = headline;
+
+    const missed = total - score;
+    document.getElementById("results-detail").textContent =
+      missed === 0
+        ? "You answered everything correctly."
+        : missed + (missed === 1 ? " question to look at again." : " questions to look at again.") +
+          " They're listed below with explanations.";
+
+    /* Only the ones they got wrong. A full transcript makes people scroll past
+       what they already know to find what they don't. */
+    const review = document.getElementById("review");
+    review.innerHTML = "";
+    outcome.quiz.questions.forEach(function (question, i) {
+      const chosen = outcome.answers[i];
+      if (chosen === question.correctIndex) return;
+
+      const item = document.createElement("div");
+      item.className = "review__item";
+
+      const q = document.createElement("p");
+      q.className = "review__question";
+      q.textContent = i + 1 + ". " + question.question;
+      item.appendChild(q);
+
+      const yours = document.createElement("p");
+      yours.className = "review__yours";
+      yours.textContent =
+        chosen === null || chosen === undefined
+          ? "You skipped this."
+          : "You chose: " + question.options[chosen];
+      item.appendChild(yours);
+
+      const right = document.createElement("p");
+      right.className = "review__correct";
+      right.textContent = "Answer: " + question.options[question.correctIndex];
+      item.appendChild(right);
+
+      if (question.explanation) {
+        const why = document.createElement("p");
+        why.className = "review__why";
+        why.textContent = question.explanation;
+        item.appendChild(why);
+      }
+      review.appendChild(item);
+    });
+
+    showScreen("results");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   window.showScreen = showScreen;
 
   // Redraw whenever the sign-in state changes.

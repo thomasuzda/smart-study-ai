@@ -1388,3 +1388,137 @@ h3 {
 .chat-message__body p {
   white-space: pre-wrap;
 }
+
+/* --------------------------------------------------------------------------
+   QUIZ — list layout
+   Every question on the page at once, answerable in any order.
+   -------------------------------------------------------------------------- */
+
+/* The bar stays put while you scroll a long quiz, so the score and Submit are
+   always one glance away. */
+.quiz__bar {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 50;
+  background-color: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.quiz__bar-inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0.875rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: calc(0.875rem * var(--font-scale));
+  color: var(--text-muted);
+}
+
+.quiz__submit {
+  padding: 0.5rem 1.25rem;
+  font-size: calc(0.875rem * var(--font-scale));
+}
+
+.questions {
+  list-style: none;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.qcard {
+  position: relative;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.5rem 1.5rem 1.5rem 3.75rem;
+  transition: border-color 0.25s var(--ease);
+}
+
+/* The number sits in the padding gutter, so long question text wraps cleanly
+   underneath itself instead of around the number. */
+.qcard__number {
+  position: absolute;
+  left: 1.25rem;
+  top: 1.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background-color: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: calc(0.8125rem * var(--font-scale));
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+
+.qcard__text {
+  font-size: calc(1.0625rem * var(--font-scale));
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.qcard.is-revealed {
+  border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+}
+
+/* The option you picked, before any right/wrong is shown. This is what makes
+   "answer now, find out later" mode legible — otherwise you cannot tell which
+   ones you have already done. */
+.answer.is-chosen {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.answer.is-correct {
+  border-color: var(--correct);
+  background-color: var(--correct-soft);
+}
+
+.answer.is-wrong {
+  border-color: var(--wrong);
+  background-color: var(--wrong-soft);
+}
+
+.answer:disabled {
+  cursor: default;
+}
+
+.quiz__actions {
+  max-width: var(--content-width);
+  margin: 2.5rem auto 4rem;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Results — only the questions that were missed. */
+.review__item {
+  text-align: left;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.review__question { font-weight: 600; margin-bottom: 0.625rem; }
+.review__yours    { color: var(--wrong); font-size: calc(0.9375rem * var(--font-scale)); }
+.review__correct  { color: var(--correct); font-size: calc(0.9375rem * var(--font-scale)); }
+.review__why      { color: var(--text-muted); font-size: calc(0.9375rem * var(--font-scale)); margin-top: 0.5rem; }
+
+@media (max-width: 600px) {
+  .qcard { padding: 1.25rem 1rem 1.25rem 3.25rem; }
+  .qcard__number { left: 0.875rem; top: 1.25rem; }
+  .quiz__bar-inner { padding: 0.75rem 1rem; flex-wrap: wrap; }
+}

@@ -246,47 +246,32 @@
          one question at a time.
          ==================================================================== -->
     <section class="screen" id="screen-quiz" hidden>
-      <!-- The progress track. aria-* attributes let a screen reader announce
-           "3 of 10" — the visual bar alone conveys nothing to them. -->
-      <div
-        class="progress"
-        role="progressbar"
-        aria-label="Quiz progress"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        aria-valuenow="0"
-        id="progress"
-      >
-        <div class="progress__fill" id="progress-fill"></div>
+      <!-- Sticky so the score and Submit stay reachable however far you scroll
+           down a 30-question list. -->
+      <div class="quiz__bar">
+        <div class="quiz__bar-inner">
+          <span id="question-counter">10 questions</span>
+          <span class="quiz__meta-right">
+            <button class="quiz__shuffle" type="button" id="shuffle-quiz">Shuffle</button>
+            <span id="score-so-far"></span>
+            <button class="btn btn--primary quiz__submit" type="button" id="submit-quiz">
+              Submit
+            </button>
+          </span>
+        </div>
+        <div class="progress" role="progressbar" aria-label="Questions answered"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
+          <div class="progress__fill" id="progress-fill"></div>
+        </div>
       </div>
 
-      <div class="quiz__meta">
-        <span id="question-counter">Question 1 of 10</span>
-        <span class="quiz__meta-right">
-          <!-- Reshuffles and restarts. Answering the same questions in the
-               same order teaches you the order, not the material. -->
-          <button class="quiz__shuffle" type="button" id="shuffle-quiz">
-            Shuffle
-          </button>
-          <span id="score-so-far">0 correct</span>
-        </span>
-      </div>
-
-      <!-- aria-live="polite" makes screen readers read the new question when
-           it changes, without interrupting whatever they're currently saying. -->
-      <h2 class="quiz__question" id="question-text" aria-live="polite"></h2>
-
-      <ul class="answers" id="answers"></ul>
-
-      <!-- The explanation panel. Hidden until an answer is picked. -->
-      <div class="feedback" id="feedback" hidden>
-        <p class="feedback__verdict" id="feedback-verdict"></p>
-        <p class="feedback__explanation" id="feedback-explanation"></p>
-      </div>
+      <!-- Every question renders into here as a card, so the whole quiz is
+           visible at once and you can answer in any order. -->
+      <ol class="questions" id="questions"></ol>
 
       <div class="quiz__actions">
-        <button class="btn btn--primary" type="button" id="next-question" hidden>
-          Next
+        <button class="btn btn--primary btn--large" type="button" id="submit-quiz-bottom">
+          Submit quiz
         </button>
       </div>
     </section>
