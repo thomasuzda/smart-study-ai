@@ -684,9 +684,17 @@
   });
 
   // "Skip — use as guest" from inside the auth screen
-  document.getElementById("auth-guest").addEventListener("click", function () {
-    Auth.continueAsGuest();
-    showScreen("home");
+  /* Two ways to skip the account: from the landing, and from the auth screen
+     itself once you're already there. Same behaviour either way. */
+  ["auth-guest", "landing-guest"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () {
+      Auth.continueAsGuest();
+      showScreen("home");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      // Put the cursor in the box, so you can paste straight away.
+      const box = document.getElementById("chat-input");
+      if (box) box.focus();
+    });
   });
 
   // The various "create an account" prompts scattered around the app

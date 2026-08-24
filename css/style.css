@@ -1897,3 +1897,34 @@ h3 {
 .landing__hero {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* The third and quietest option on the landing: no account at all. Smaller and
+   greyer than the sign-in line above it, so the order of preference reads
+   top to bottom without any of the three being hidden. */
+.landing__guest {
+  margin: 0.5rem 0 0;
+  font-size: calc(0.875rem * var(--font-scale));
+}
+
+.landing__guest .link-button {
+  padding: 0.125rem 0.375rem;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--text-muted);
+  position: relative;
+}
+
+/* Same 44px hit area as the sign-in link — the visible text is only ~20px
+   tall, which is fine for a mouse and awkward for a thumb. */
+.landing__guest .link-button::after {
+  content: "";
+  position: absolute;
+  inset: -12px -4px;
+}
+
+.on-landing .landing__guest .link-button { color: #7d8ba1; }
+
+.on-landing .landing__guest .link-button:hover {
+  color: #cfe0f5;
+  background-color: rgba(255, 255, 255, 0.07);
+}
