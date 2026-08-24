@@ -25,10 +25,20 @@
    ========================================================================== */
 
 const CONFIG = {
-  // Paste your Supabase project's values here.
-  // Get them at: supabase.com → your project → Settings → API
-  //   SUPABASE_URL      is labeled "Project URL"
-  //   SUPABASE_ANON_KEY is labeled "anon" / "public"
+  /* Paste your Supabase project's two values here.
+     Find them at: supabase.com -> your project -> Settings -> API Keys
+
+       SUPABASE_URL       is labeled "Project URL".
+                          Looks like https://abcdefghijkl.supabase.co
+
+       SUPABASE_ANON_KEY  is the PUBLIC key. Supabase has renamed this over
+                          time, so depending on when your project was made it
+                          is labeled either "Publishable key" (starts with
+                          sb_publishable_) or "anon public" (a long key
+                          starting with eyJ). Either works — they do the same
+                          job. Just never take the one marked "secret" or
+                          "service_role": that one bypasses every security
+                          rule, and this file is downloaded by the browser. */
   SUPABASE_URL: "",
   SUPABASE_ANON_KEY: "",
 };
