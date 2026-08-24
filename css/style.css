@@ -827,36 +827,6 @@ h3 {
   cursor: default;
 }
 
-/* --- The guest reminder banner --- */
-/* Sits under the menu whenever the user is browsing as a guest, so the fact
-   that nothing is being saved is never a surprise later. */
-.guest-banner {
-  position: sticky;
-  top: var(--header-height);
-  z-index: 90;
-  background-color: var(--surface-alt);
-  border-bottom: 1px solid var(--border);
-  padding: 0.625rem 1.5rem;
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  text-align: center;
-}
-
-.guest-banner[hidden] {
-  display: none !important;
-}
-
-.guest-banner .link-button {
-  padding: 0.125rem 0.5rem;
-  font-size: inherit;
-  font-weight: 600;
-}
-
 /* --------------------------------------------------------------------------
    10. CARDS
    -------------------------------------------------------------------------- */

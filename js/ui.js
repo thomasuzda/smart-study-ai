@@ -698,8 +698,7 @@
   });
 
   // The various "create an account" prompts scattered around the app
-  ["banner-create-account", "files-create-account", "account-create",
-   "landing-signup"].forEach(function (id) {
+  ["files-create-account", "account-create", "landing-signup"].forEach(function (id) {
     document.getElementById(id).addEventListener("click", function () {
       openAuth("signup");
     });
@@ -728,8 +727,10 @@
     const signedIn = Boolean(Auth.getUser());
     const guest = Auth.isGuest();
 
-    // --- Guest reminder banner ---
-    document.getElementById("guest-banner").hidden = !guest;
+    /* The guest reminder banner used to sit under the menu here. It was taking
+       two lines plus a button on a phone, directly above the content, to say
+       something the user had just chosen on the previous screen. My Files
+       still explains it in the one place where it actually bites. */
 
     // --- My Files ---
     document.getElementById("files-guest").hidden = !guest;
