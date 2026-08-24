@@ -163,7 +163,6 @@
   const chatInput = document.getElementById("chat-input");
   const chatMessages = document.getElementById("chat-messages");
   const chatSend = document.querySelector(".chat-send");
-  const countSelect = document.getElementById("chat-count");
   const chatContext = document.getElementById("chat-context");
   const chatContextLabel = document.getElementById("chat-context-label");
   const chatNewButton = document.getElementById("chat-new");
@@ -247,7 +246,10 @@
     choices.forEach(function (choice, i) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "btn " + (i === 0 ? "btn--primary" : "btn--secondary") + " chat-choice";
+      // Usually the first option is the recommended one, but a choice can say
+      // so itself — the count row highlights whatever was picked last.
+      const isPrimary = choice.primary === undefined ? i === 0 : choice.primary;
+      button.className = "btn " + (isPrimary ? "btn--primary" : "btn--secondary") + " chat-choice";
       button.textContent = choice.label;
       button.addEventListener("click", function () {
         // Once a path is chosen the others are meaningless — replace the row
@@ -354,8 +356,33 @@
     }
   }
 
-  function currentCount() {
-    return countSelect ? Number(countSelect.value) : 10;
+  /* The last count the user picked. Used when they follow up with "make them
+     harder" — a revision should keep the length they already chose rather
+     than silently snapping back to a default. */
+  let lastCount = 10;
+
+  const COUNT_CHOICES = [5, 10, 15, 20, 30];
+
+  /**
+   * Ask how many questions, then run `then(count)`.
+   *
+   * This used to be a dropdown sitting in the composer, which asked before
+   * there was anything to count — you had to answer it on the way in, without
+   * knowing yet whether you'd even be generating questions. Asking here means
+   * it only ever comes up once a quiz is genuinely being written.
+   */
+  function askCount(then) {
+    const bubble = addMessage("assistant", "How many questions?");
+    addChoices(bubble, COUNT_CHOICES.map(function (n) {
+      return {
+        label: String(n),
+        primary: n === lastCount,
+        run: function () {
+          lastCount = n;
+          then(n);
+        },
+      };
+    }));
   }
 
   chatForm.addEventListener("submit", async function (event) {
@@ -394,8 +421,10 @@
         {
           label: "New questions in this style",
           run: function () {
-            withThinking("Writing new questions in that style\u2026", async function (b) {
-              presentQuiz(b, await Generate.buildQuiz(message, "mirror", currentCount()));
+            askCount(function (count) {
+              withThinking("Writing new questions in that style\u2026", async function (b) {
+                presentQuiz(b, await Generate.buildQuiz(message, "mirror", count));
+              });
             });
           },
         },
@@ -427,15 +456,17 @@
         return {
           label: label,
           run: function () {
-            withThinking("Writing your questions\u2026", async function (b) {
-              const material = extra ? message + "\n\nPreference: " + extra : message;
-              presentQuiz(b, await Generate.buildQuiz(material, "generate", currentCount()));
+            askCount(function (count) {
+              withThinking("Writing your questions\u2026", async function (b) {
+                const material = extra ? message + "\n\nPreference: " + extra : message;
+                presentQuiz(b, await Generate.buildQuiz(material, "generate", count));
+              });
             });
           },
         };
       };
       addChoices(bubble, [
-        make("Mixed \u00b7 " + currentCount() + " questions", null),
+        make("Mixed", null),
         make("Multiple choice only", "Use multiple_choice for every question."),
         make("Make it hard", "Favour questions that require reasoning, not recall."),
         {
@@ -459,7 +490,7 @@
     // ---- A note about the quiz already on screen
     if (intent === "refine") {
       withThinking("Revising your questions\u2026", async function (b) {
-        presentQuiz(b, await Generate.refine(message, currentCount()));
+        presentQuiz(b, await Generate.refine(message, lastCount));
       });
       return;
     }
@@ -668,7 +699,8 @@
   });
 
   // The various "create an account" prompts scattered around the app
-  ["banner-create-account", "files-create-account", "account-create"].forEach(function (id) {
+  ["banner-create-account", "files-create-account", "account-create",
+   "landing-signup"].forEach(function (id) {
     document.getElementById(id).addEventListener("click", function () {
       openAuth("signup");
     });
