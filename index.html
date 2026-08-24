@@ -100,6 +100,17 @@
           <button class="btn btn--primary btn--large" type="button" id="landing-start">
             Start studying
           </button>
+
+          <!-- Sign-in sits under the button rather than in the top menu: this
+               is where a new visitor is already looking, and it keeps the
+               header to navigation only. Hidden once you're signed in, since
+               there's nothing to sign in to at that point. -->
+          <p class="landing__signin" id="landing-signin">
+            Already have an account?
+            <button class="link-button" type="button" id="landing-signin-button">
+              Sign in
+            </button>
+          </p>
         </div>
       </div>
 

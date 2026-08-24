@@ -177,6 +177,19 @@ const Constellation = (function () {
   }
 
   function sync() {
+    if (!container) return;
+
+    /* Re-measure on the way back onto the landing. The ResizeObserver above
+       covers live window dragging, but its callback is delivered with the
+       browser's rendering steps, which are suspended in a background tab —
+       so a resize that happened while the tab was hidden, or while another
+       screen was showing, might not have landed yet. This check is synchronous
+       and costs one layout read, and resize() ignores a zero-sized container. */
+    if (container.clientWidth &&
+        (container.clientWidth !== width || container.clientHeight !== height)) {
+      resize();
+    }
+
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (visible()) start(); else stop();
   }
@@ -197,7 +210,17 @@ const Constellation = (function () {
       return;
     }
 
-    window.addEventListener('resize', resize);
+    /* A plain window 'resize' listener isn't enough: while the landing is on
+       another screen the container is display:none and measures 0, so resize()
+       bails and the canvas keeps its old size. Come back and CSS stretches
+       that stale bitmap to fit. A ResizeObserver fires whenever the container's
+       own box changes — including 0 -> full when it becomes visible again — so
+       the two can't drift apart. */
+    if (typeof ResizeObserver === 'function') {
+      new ResizeObserver(resize).observe(container);
+    } else {
+      window.addEventListener('resize', resize);
+    }
     document.addEventListener('visibilitychange', sync);
 
     container.ownerDocument.addEventListener('pointermove', function (e) {

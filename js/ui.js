@@ -674,6 +674,10 @@
     });
   });
 
+  document.getElementById("landing-signin-button").addEventListener("click", function () {
+    openAuth("login");
+  });
+
   document.getElementById("account-login").addEventListener("click", function () {
     openAuth("login");
   });
@@ -710,11 +714,21 @@
       ? "Manage how you're signed in."
       : "Sign in to keep your study chats on every device.";
 
+    // --- Landing sign-in ---
+    // The prompt under "Start studying" is only for people who aren't signed
+    // in; leaving it up afterwards would offer something already done.
+    const landingSignin = document.getElementById("landing-signin");
+    if (landingSignin) landingSignin.hidden = signedIn;
+
     // --- Menu ---
-    // "Account" reads oddly when you aren't one; call it what it does.
+    // Signing in now lives under the "Start studying" button, so the menu item
+    // is only useful once there's an account to manage. Guests still have two
+    // ways in: that landing prompt, and the guest banner's "Create a free
+    // account" — so hiding it here doesn't strand anyone.
     const accountMenuItem = document.querySelector('.menu__item[data-screen="account"]');
     if (accountMenuItem) {
-      accountMenuItem.textContent = signedIn ? "Account" : "Sign In";
+      accountMenuItem.textContent = "Account";
+      accountMenuItem.hidden = !signedIn;
     }
   }
 
