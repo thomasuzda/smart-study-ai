@@ -96,24 +96,21 @@
           you. Get practice questions in seconds.
         </p>
 
-        <div class="landing__cta rise rise--4">
-          <button class="btn btn--primary btn--large" type="button" id="landing-start">
-            Start studying
+        <!-- Making an account is the main path now. Anyone who'd rather not
+             still has "Skip — use as guest" on the screen this leads to, so
+             the app stays reachable without one. Hidden once you're signed in,
+             since none of it applies then. -->
+        <div class="landing__cta rise rise--4" id="landing-signin">
+          <button class="btn btn--primary btn--large" type="button" id="landing-signup">
+            Create an account
           </button>
 
-          <!-- Both account options sit under the button rather than in the top
-               menu: this is where a new visitor is already looking, and it
-               keeps the header to navigation only. "Start studying" above goes
-               straight in as a guest, so all three routes are visible at once.
-               Hidden once you're signed in, since none of it applies then. -->
-          <div class="landing__auth" id="landing-signin">
-            <button class="btn btn--secondary" type="button" id="landing-signup">
-              Create an account
-            </button>
-            <button class="btn btn--secondary" type="button" id="landing-signin-button">
+          <p class="landing__signin">
+            Already have an account?
+            <button class="link-button" type="button" id="landing-signin-button">
               Sign in
             </button>
-          </div>
+          </p>
         </div>
       </div>
 

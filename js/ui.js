@@ -142,15 +142,6 @@
     });
   });
 
-  // Landing → the chat
-  document.getElementById("landing-start").addEventListener("click", function () {
-    showScreen("home");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    // Put the cursor in the box, so you can paste straight away.
-    const box = document.getElementById("chat-input");
-    if (box) box.focus();
-  });
-
   /* ------------------------------------------------------------------------
      STUDY CHAT
      Paste notes or an existing quiz and this turns them into questions. A

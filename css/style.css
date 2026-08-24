@@ -1830,43 +1830,46 @@ h3 {
    path, and a second loud button beside the first makes neither one read as
    the thing to do.
    -------------------------------------------------------------------------- */
-.landing__auth {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-top: 1.25rem;
-  flex-wrap: wrap;   /* the two stack rather than shrink on a narrow phone */
-}
-
-/* display:flex would otherwise beat [hidden], which is how this shows up for
-   signed-in users who shouldn't see it at all. */
-.landing__auth[hidden] { display: none; }
-
-.landing__auth .btn {
-  /* Smaller than "Start studying": these are the alternatives to it, and two
-     more full-size buttons would leave nothing looking like the main path.
-     min-height holds them at the 44px a thumb needs — the padding alone came
-     to 39px, which is comfortable with a mouse and fiddly on a phone. */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0.6rem 1.25rem;
+/* Signing in is the quieter of the two, so it's a line of text rather than a
+   second button — one clear primary action, with the alternative underneath. */
+.landing__signin {
+  margin: 1.25rem 0 0;
   font-size: calc(0.9375rem * var(--font-scale));
+  color: var(--text-muted);
 }
 
-/* The landing is dark in both themes, so the light-background border and the
-   accent-tinted hover would both be nearly invisible here. */
-.on-landing .landing__auth .btn {
-  color: #cfe0f5;
-  border-color: rgba(255, 255, 255, 0.22);
+.landing__signin .link-button {
+  /* Tight enough to read as part of the sentence rather than a control. */
+  padding: 0.125rem 0.375rem;
+  font-size: inherit;
+  font-weight: 600;
+  position: relative;
 }
 
-.on-landing .landing__auth .btn:hover {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.45);
-  background-color: rgba(255, 255, 255, 0.08);
+/* That tight padding leaves a 22px-tall tap target, half what a thumb needs.
+   An invisible overlay grows the hit area to 44px without moving anything or
+   inflating the hover pill. The gap to the button above is 20px, so it can't
+   swallow taps meant for "Create an account". */
+.landing__signin .link-button::after {
+  content: "";
+  position: absolute;
+  inset: -11px -4px;
 }
+
+/* The landing is dark in both themes, so the muted grey and accent chosen for
+   light backgrounds would both nearly vanish here. */
+.on-landing .landing__signin { color: #93a2b8; }
+
+.on-landing .landing__signin .link-button { color: #5aa9ff; }
+
+.on-landing .landing__signin .link-button:hover {
+  background-color: rgba(90, 169, 255, 0.14);
+}
+
+/* This whole block is hidden for signed-in users, and .landing__cta has no
+   display rule of its own — but state it, so a future layout change here
+   can't silently defeat [hidden]. */
+.landing__cta[hidden] { display: none; }
 
 /* The Account item is hidden for guests now that signing in lives on the
    landing. Buttons aren't display:flex, but a stray display rule elsewhere
