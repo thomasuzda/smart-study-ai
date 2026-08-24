@@ -82,14 +82,14 @@
              decoration; the real <h1> below carries the heading for screen
              readers. Scoped to the hero so the ring centres on the visible
              area rather than on the whole scrollable section. -->
-        <div class="void-field" id="void-field" aria-hidden="true"></div>
+        <div class="constellation" id="constellation" aria-hidden="true"></div>
 
         <span class="landing__badge rise rise--1">
           <span class="landing__badge-dot" aria-hidden="true"></span>
           Powered by Claude
         </span>
 
-        <h1 class="landing__title sr-only">Smart Study AI</h1>
+        <h1 class="landing__title rise rise--2">Smart Study AI</h1>
 
         <p class="landing__tagline rise rise--3">
           Paste your notes, your slides, or a quiz your professor already gave
@@ -374,7 +374,7 @@
        exists by the time they run — otherwise getElementById finds nothing.
        Order matters: settings, then auth, then data, then engine, then UI
        (which wires everything together and must go last). -->
-  <script src="js/gradient-ring.js"></script>
+  <script src="js/constellation.js"></script>
 
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>

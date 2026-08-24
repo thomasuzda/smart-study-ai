@@ -46,13 +46,19 @@
       if (section) section.hidden = id !== targetId;
     });
 
+    // The landing is dark whatever the system theme is, so the header has to
+    // follow it there — otherwise a white bar sits above a black page.
+    document.body.classList.toggle("on-landing", name === "landing");
+
+    // The landing background animates, so stop it whenever we leave the
+    // landing. sync() reads the screen's visibility and starts or pauses to
+    // match, so it doesn't need telling which way to go.
+    if (window.Constellation) window.Constellation.sync();
+
     // Update the menu so the current screen is visibly highlighted.
     // aria-current is a real accessibility attribute (it tells a screen
     // reader "this is the page you're on"), and the CSS styles it directly —
     // so the visual state and the announced state can't fall out of sync.
-    // The landing page's particle field should only run while it's on screen.
-    if (window.VoidField) window.VoidField.sync();
-
     document.querySelectorAll(".menu__item").forEach(function (item) {
       if (item.dataset.screen === name) {
         item.setAttribute("aria-current", "page");
