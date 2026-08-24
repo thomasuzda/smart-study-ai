@@ -1890,3 +1890,25 @@ h3 {
    landing. Buttons aren't display:flex, but a stray display rule elsewhere
    would silently defeat [hidden], so state it. */
 .menu__item[hidden] { display: none; }
+
+/* --------------------------------------------------------------------------
+   NO ACCIDENTAL SELECTION IN THE HERO
+   The canvas is pointer-events: none so it can never swallow a click on the
+   button. That means a drag across it lands on the text underneath, and
+   moving the mouse to play with the field highlighted the headline in blue.
+
+   Suppressing selection here costs only the ability to drag-select marketing
+   copy, which nobody needs. The text is still ordinary HTML — user-select
+   affects the mouse alone, so screen readers and search engines are unchanged.
+   Scoped to the hero: quiz questions and chat replies stay selectable, since
+   copying those is a real thing to want.
+   -------------------------------------------------------------------------- */
+.landing__hero {
+  -webkit-user-select: none; /* Safari, including iOS */
+  user-select: none;
+}
+
+/* A tap on a phone shouldn't flash a grey highlight box over the hero either. */
+.landing__hero {
+  -webkit-tap-highlight-color: transparent;
+}
