@@ -22,7 +22,18 @@ const Constellation = (function () {
     maxNodes: 130,
     minNodes: 34,
 
-    linkDistance: 150,    // px within which two nodes are joined
+    /* How far apart two nodes can be and still be joined — as a multiple of
+       the typical gap between nodes, NOT a fixed pixel count. A fixed 150px
+       looked right on a desktop but turned a phone into a tangle: minNodes
+       forces the count up on a small screen, which packs the nodes closer
+       (about 95px apart instead of 126px) while the link radius stayed put.
+       The ratio was 1.58 on a phone against 1.19 on a desktop, so nearly
+       every node joined every neighbour. Tying it to spacing keeps the same
+       openness on any screen; 1.19 is the desktop value that already looked
+       right, so big screens are unchanged. */
+    linkRatio: 1.19,
+    maxLinkDistance: 170, // ceiling, so a huge sparse screen keeps lines short
+
     speed: 0.12,          // px per frame — slow enough to feel ambient
     dotRadius: 1.5,
     pointerRadius: 190,   // nodes nearer than this react to the cursor
@@ -35,23 +46,77 @@ const Constellation = (function () {
   let width = 0, height = 0, dpr = 1;
   let nodes = [];
   let frame = null;
+  let linkDistance = 150; // recomputed from the box size in build()
   const pointer = { x: -9999, y: -9999 };
 
-  function build() {
+  function makeNode(x, y) {
+    const angle = Math.random() * Math.PI * 2;
+    return {
+      x: x === undefined ? Math.random() * width : x,
+      y: y === undefined ? Math.random() * height : y,
+      vx: Math.cos(angle) * CFG.speed,
+      vy: Math.sin(angle) * CFG.speed,
+      // A little size variation stops it reading as a regular grid.
+      r: CFG.dotRadius * (0.6 + Math.random() * 0.8),
+    };
+  }
+
+  /**
+   * Place `count` nodes so they cover the box evenly.
+   *
+   * Purely random placement clumps: on a desktop the high node count averages
+   * that out, but a phone only gets ~34 and the result was knots of nodes with
+   * large empty voids between them. So the box is divided into a grid of cells
+   * and one node is dropped at a random spot inside each — even coverage, but
+   * jittered, so it never reads as a regular lattice.
+   */
+  function scatter(count) {
+    // Cells that come out roughly square, whatever the box's aspect ratio.
+    const cols = Math.max(1, Math.round(Math.sqrt((count * width) / height)));
+    const rows = Math.max(1, Math.ceil(count / cols));
+    const cellW = width / cols;
+    const cellH = height / rows;
+
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const cx = i % cols;
+      const cy = Math.floor(i / cols);
+      out.push(makeNode(
+        (cx + Math.random()) * cellW,
+        (cy + Math.random()) * cellH
+      ));
+    }
+    return out;
+  }
+
+  /**
+   * Size the field to the current box.
+   *
+   * prevW/prevH are the dimensions this replaces. When they're given, the
+   * existing nodes are stretched into the new box rather than thrown away:
+   * a resize should slide the stars into place, not deal a whole new sky.
+   * Rebuilding from scratch made every resize — rotating a phone, dragging a
+   * window edge — visibly reshuffle the entire background.
+   */
+  function build(prevW, prevH) {
     const target = Math.round(width * height * CFG.density);
     const count = Math.max(CFG.minNodes, Math.min(CFG.maxNodes, target));
-    nodes = [];
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: Math.cos(angle) * CFG.speed,
-        vy: Math.sin(angle) * CFG.speed,
-        // A little size variation stops it reading as a regular grid.
-        r: CFG.dotRadius * (0.6 + Math.random() * 0.8),
-      });
+
+    // The gap you'd expect between neighbours if they were evenly spread.
+    const spacing = Math.sqrt((width * height) / count);
+    linkDistance = Math.min(CFG.maxLinkDistance, spacing * CFG.linkRatio);
+
+    if (nodes.length && prevW > 0 && prevH > 0) {
+      const sx = width / prevW;
+      const sy = height / prevH;
+      for (const n of nodes) { n.x *= sx; n.y *= sy; }
+      // Then top up or trim to whatever the new area calls for.
+      while (nodes.length > count) nodes.pop();
+      while (nodes.length < count) nodes.push(makeNode());
+      return;
     }
+
+    nodes = scatter(count);
   }
 
   /* Colours come from the stylesheet so the field follows the palette rather
@@ -88,12 +153,12 @@ const Constellation = (function () {
         const dy = a.y - c.y;
         // Compare squared distances to skip a square root per pair.
         const d2 = dx * dx + dy * dy;
-        if (d2 > CFG.linkDistance * CFG.linkDistance) continue;
+        if (d2 > linkDistance * linkDistance) continue;
 
         const d = Math.sqrt(d2);
         // Fade with distance, so links appear and dissolve rather than
         // snapping in and out as nodes drift past each other.
-        const strength = 1 - d / CFG.linkDistance;
+        const strength = 1 - d / linkDistance;
         ctx.strokeStyle =
           'rgba(' + r + ',' + g + ',' + b + ',' + (strength * CFG.lineAlpha).toFixed(3) + ')';
         ctx.beginPath();
@@ -158,6 +223,7 @@ const Constellation = (function () {
     const w = container.clientWidth;
     const h = container.clientHeight;
     if (!w || !h) return;
+    const prevW = width, prevH = height;
     width = w; height = h;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * dpr);
@@ -165,7 +231,7 @@ const Constellation = (function () {
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     rgb = toRGB(accent());
-    build();
+    build(prevW, prevH);
     // Resizing clears the canvas; if the loop is stopped nothing would repaint
     // it and the background would simply vanish.
     if (frame === null) paint();
@@ -223,14 +289,21 @@ const Constellation = (function () {
     }
     document.addEventListener('visibilitychange', sync);
 
-    container.ownerDocument.addEventListener('pointermove', function (e) {
-      const rect = canvas.getBoundingClientRect();
-      pointer.x = e.clientX - rect.left;
-      pointer.y = e.clientY - rect.top;
-    });
-    container.ownerDocument.addEventListener('pointerleave', function () {
-      pointer.x = pointer.y = -9999;
-    });
+    /* Lines reaching for the cursor only make sense where there IS a cursor.
+       Bound unconditionally, this fired on touch too: dragging a thumb to
+       scroll the page dragged a bright fan of lines along with it, which read
+       as the background malfunctioning. Gate it on a device that can actually
+       hover with a fine pointer. */
+    if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      container.ownerDocument.addEventListener('pointermove', function (e) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = e.clientX - rect.left;
+        pointer.y = e.clientY - rect.top;
+      });
+      container.ownerDocument.addEventListener('pointerleave', function () {
+        pointer.x = pointer.y = -9999;
+      });
+    }
 
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
       rgb = toRGB(accent());
