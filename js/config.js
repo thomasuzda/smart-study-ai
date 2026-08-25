@@ -39,8 +39,8 @@ const CONFIG = {
                           job. Just never take the one marked "secret" or
                           "service_role": that one bypasses every security
                           rule, and this file is downloaded by the browser. */
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: "",
+  SUPABASE_URL: "https://bxghvcdkihhffnixrmoi.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_he7XKHJczq50SmijwtHpDQ_JegRTxiB",
 };
 
 /**
