@@ -1874,30 +1874,24 @@ h3 {
      the separate switch for the callout. */
   -webkit-touch-callout: none;
 
-  /* pan-y was tried first — "let vertical scroll through, keep the rest for
-     the field" — but a drag to move the constellation IS mostly vertical
-     motion, so the browser claimed almost every drag as a scroll before the
-     field ever saw it move. Interacting with the field has to come first: no
-     native gesture is taken from the browser here at all, so every drag,
-     any direction, drives the constellation. A tap still taps — touch-action
-     governs panning and zooming, not clicks, so the buttons below are
-     unaffected.
+  /* touch-action: none was tried, on the reasoning that a click-drag needs
+     every direction free. It broke worse: the hero measures TALLER than the
+     viewport on a real phone (788px hero in an 844px screen, bottom edge at
+     852px) — meaning the hero already covers the ENTIRE visible screen on
+     load. With the whole visible area off-limits to panning, there was no
+     square inch left to start a scroll from. Not a tuning problem — a trap,
+     confirmed by measuring hero height against viewport height directly.
 
-     The real cost: touch can no longer swipe-scroll past the hero. That's an
-     acceptable trade only because "Create an account", "Sign in", and
-     "Continue as guest" all live inside the hero already — nothing you need
-     is past it. The top menu (Home / Study / My Files) still reaches every
-     screen without scrolling. What you lose is swiping down to read the four
-     description cards below; there's no way to keep both a full-drag field
-     and a swipe-through hero, since they're the same gesture. */
-  touch-action: none;
-}
-
-/* Someone who has motion reduced never gets pointer listeners at all — see
-   constellation.js — so blocking scroll here would trap them for a field that
-   can't react to them anyway. Scroll takes priority back in that case. */
-@media (prefers-reduced-motion: reduce) {
-  .landing__hero { touch-action: pan-y; }
+     Scrolling has to win, unconditionally — a page that won't scroll is a
+     broken page under any interpretation, however the decoration behaves.
+     touch-action stays pan-y: a short press still reaches lines toward the
+     touch point (see js/constellation.js) until the drag travels far enough
+     for the browser to claim it as a scroll, same as a light touch does on
+     desktop before you move away. Continuous full-screen drag control of the
+     field isn't achievable on a phone at the same time as a guaranteed
+     ability to scroll away from a hero that size — they are the same
+     gesture. That's a real product trade-off, not a bug to keep patching. */
+  touch-action: pan-y;
 }
 
 /* The third and quietest option on the landing: no account at all. Smaller and
