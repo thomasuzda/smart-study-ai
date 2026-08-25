@@ -1522,13 +1522,15 @@ h3 {
   background-color: var(--accent);
 }
 
-/* Cards become glass over the scene rather than solid blocks, so the
-   particles stay visible behind them. */
+/* Cards read as glass over the scene rather than solid blocks.
+   No backdrop-filter: it was written when the canvas ran the full height of
+   the landing, but the canvas is the hero only now, so what sits behind these
+   cards is a flat dark background. Blurring a flat colour returns the same
+   flat colour — it cost four blurred layers, recomputed as the page scrolls
+   beneath them, to change nothing on screen. */
 .landing .feature {
   background-color: rgba(255, 255, 255, 0.035);
   border-color: rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .landing .feature:hover {
@@ -1861,11 +1863,23 @@ h3 {
 .landing__hero {
   -webkit-user-select: none; /* Safari, including iOS */
   user-select: none;
-}
 
-/* A tap on a phone shouldn't flash a grey highlight box over the hero either. */
-.landing__hero {
+  /* A tap shouldn't flash a grey highlight box over the hero. */
   -webkit-tap-highlight-color: transparent;
+
+  /* iOS shows its own selection UI on a press-and-hold — the magnifier and
+     the Copy/Look Up bar — and it fires on the hero text before the finger
+     has moved far enough to count as a drag. Pressing to play with the field
+     kept summoning it. user-select above stops the selection itself; this is
+     the separate switch for the callout. */
+  -webkit-touch-callout: none;
+
+  /* The one gesture the browser may take from us here is a vertical scroll.
+     Anything else — a sideways or diagonal drag — belongs to the constellation,
+     and declaring that up front means the browser hands the touch straight to
+     the page instead of holding it back to see whether it starts a pinch or a
+     double-tap zoom. That wait is what made dragging feel late. */
+  touch-action: pan-y;
 }
 
 /* The third and quietest option on the landing: no account at all. Smaller and
@@ -1897,4 +1911,19 @@ h3 {
 .on-landing .landing__guest .link-button:hover {
   color: #cfe0f5;
   background-color: rgba(255, 255, 255, 0.07);
+}
+
+/* The header is translucent with a 20px blur so content stays visible sliding
+   under it. Over the landing that blur sits directly on top of a canvas that
+   repaints every frame, so the browser has to re-run it every frame too — a
+   full-width gaussian blur, 60 times a second, on a phone.
+
+   On the landing the bar is near-black over a near-black page, so the blur is
+   buying nothing you can see. Making it opaque there drops both the blur and
+   the need to composite the canvas underneath it. Every other screen keeps
+   the translucent treatment. */
+.on-landing .menu {
+  background-color: #05070d;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
