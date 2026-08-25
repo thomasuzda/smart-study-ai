@@ -274,5 +274,14 @@ const Auth = (function () {
       return currentUser ? currentUser.email : null;
     },
     onChange: onChange,
+    /**
+     * The same Supabase client this file uses for login, handed to whatever
+     * saves quizzes. One client per page, not one per file — a second
+     * client would carry its own session state and could drift out of sync
+     * with the one the user is actually logged into.
+     */
+    getClient: function () {
+      return client;
+    },
   };
 })();
