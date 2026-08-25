@@ -8,3 +8,5 @@ node_modules/
 
 # macOS clutter
 .DS_Store
+.vercel
+.env*

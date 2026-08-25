@@ -227,6 +227,34 @@
           />
         </div>
 
+        <!-- Only shown when creating an account — ui.js's setAuthMode hides
+             this whole block while logging in, where there's nothing to
+             confirm. -->
+        <div class="field" id="auth-confirm-wrap" hidden>
+          <label for="auth-password-confirm">Confirm password</label>
+          <input
+            type="password"
+            id="auth-password-confirm"
+            name="password-confirm"
+            placeholder="Type it again"
+            autocomplete="new-password"
+          />
+        </div>
+
+        <!-- Also signup-only. Purely a contact detail for account help — same
+             field and same reasoning as the one on the Account screen, just
+             offered up front instead of only after signing up. -->
+        <div class="field" id="auth-phone-wrap" hidden>
+          <label for="auth-phone">Phone number (optional)</label>
+          <input
+            type="tel"
+            id="auth-phone"
+            name="phone"
+            placeholder="For account help — never required"
+            autocomplete="tel"
+          />
+        </div>
+
         <!-- role="alert" makes screen readers announce errors immediately
              rather than leaving them silently on screen. -->
         <p class="auth-message" id="auth-message" role="alert" hidden></p>

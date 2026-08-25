@@ -603,6 +603,10 @@
   const authForm = document.getElementById("auth-form");
   const authEmail = document.getElementById("auth-email");
   const authPassword = document.getElementById("auth-password");
+  const authPasswordConfirm = document.getElementById("auth-password-confirm");
+  const authConfirmWrap = document.getElementById("auth-confirm-wrap");
+  const authPhone = document.getElementById("auth-phone");
+  const authPhoneWrap = document.getElementById("auth-phone-wrap");
   const authSubmit = document.getElementById("auth-submit");
   const authMessage = document.getElementById("auth-message");
 
@@ -620,6 +624,7 @@
 
   /** Switch the auth screen between logging in and signing up. */
   function setAuthMode(mode) {
+    const modeChanged = authMode !== mode;
     authMode = mode;
     const isSignup = mode === "signup";
 
@@ -646,6 +651,21 @@
 
     // "Forgot password" only makes sense when logging in.
     document.getElementById("auth-forgot").hidden = isSignup;
+
+    // Confirming a password, and the optional phone number, only make sense
+    // when creating an account — logging in has neither to offer.
+    authConfirmWrap.hidden = !isSignup;
+    authPasswordConfirm.required = isSignup;
+    authPhoneWrap.hidden = !isSignup;
+
+    // Only clear on an actual login<->signup switch. setAuthMode also runs
+    // after a failed submit to reset the button — same mode, so whatever the
+    // user typed (including a phone number they may have already filled in)
+    // needs to survive that so they can just fix the one wrong field.
+    if (modeChanged) {
+      authPasswordConfirm.value = "";
+      authPhone.value = "";
+    }
 
     setAuthMessage(null);
   }
@@ -683,9 +703,19 @@
     const email = authEmail.value.trim();
     const password = authPassword.value;
 
+    // Checked here, before any network call: a mismatch is something the
+    // user can fix instantly, and there's no reason to make Supabase's own
+    // signup rate limit absorb a retry for a typo we can already see.
+    if (authMode === "signup" && password !== authPasswordConfirm.value) {
+      authSubmit.disabled = false;
+      setAuthMode(authMode);
+      setAuthMessage("Those passwords don't match.", "error");
+      return;
+    }
+
     const result =
       authMode === "signup"
-        ? await Auth.signUp(email, password)
+        ? await Auth.signUp(email, password, authPhone.value)
         : await Auth.signIn(email, password);
 
     // Restore the button whatever happened.

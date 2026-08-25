@@ -87,12 +87,22 @@ const Auth = (function () {
      try/catch at every call site.
      ------------------------------------------------------------------------ */
 
-  async function signUp(email, password) {
+  async function signUp(email, password, phone) {
     const problem = validate(email, password);
     if (problem) return { ok: false, message: problem };
     if (!client) return { ok: false, message: notConnectedMessage() };
 
-    const { data, error } = await client.auth.signUp({ email: email, password: password });
+    /* Passed in `options.data` rather than saved with a follow-up
+       updatePhone() call after signing up: when email confirmation is
+       required there's no session yet on the way out of this function, and
+       updateUser() (what updatePhone uses) needs one. Metadata handed to
+       signUp itself lands on the row immediately either way. */
+    const trimmedPhone = (phone || "").trim();
+    const { data, error } = await client.auth.signUp({
+      email: email,
+      password: password,
+      options: trimmedPhone ? { data: { phone: trimmedPhone } } : undefined,
+    });
     if (error) return { ok: false, message: friendlyError(error) };
 
     // Supabase can be set to require email confirmation. When it is, the user
