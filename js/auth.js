@@ -125,6 +125,22 @@ const Auth = (function () {
     return { ok: true };
   }
 
+  /**
+   * A self-reported phone number, purely for account help — not tied to any
+   * login or verification flow. Stored in user_metadata rather than the
+   * dedicated `phone` column Supabase reserves for actual phone-based sign-in,
+   * so saving one here can't accidentally switch on a login method nobody
+   * asked for.
+   */
+  async function updatePhone(phone) {
+    if (!client) return { ok: false, message: notConnectedMessage() };
+    const { error } = await client.auth.updateUser({ data: { phone: (phone || "").trim() } });
+    if (error) return { ok: false, message: friendlyError(error) };
+    // onAuthStateChange (registered in init) fires a USER_UPDATED event from
+    // this call and refreshes currentUser on its own — nothing to do here.
+    return { ok: true };
+  }
+
   async function signOut() {
     if (client) await client.auth.signOut();
     currentUser = null;
@@ -273,6 +289,12 @@ const Auth = (function () {
     getEmail: function () {
       return currentUser ? currentUser.email : null;
     },
+    getPhone: function () {
+      return currentUser && currentUser.user_metadata
+        ? currentUser.user_metadata.phone || ""
+        : "";
+    },
+    updatePhone: updatePhone,
     onChange: onChange,
     /**
      * The same Supabase client this file uses for login, handed to whatever

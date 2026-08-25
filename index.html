@@ -334,11 +334,16 @@
       </div>
 
       <div class="card" id="files-empty" hidden>
-        <h3>No chats yet</h3>
+        <h3>No saved quizzes yet</h3>
         <p class="text-muted">
-          Once you start a study chat, it’ll show up here.
+          Generate a quiz in Study, then click "Save quiz" to keep it here.
         </p>
       </div>
+
+      <!-- Populated by Store.listQuizzes() whenever this screen is opened.
+           Plain HTML in js/ui.js, same pattern as chat bubbles — no template
+           library needed for a handful of cards. -->
+      <ul class="file-list" id="files-list" hidden></ul>
     </section>
 
     <!-- ====================================================================
@@ -354,6 +359,24 @@
       <div class="card" id="account-signed-in" hidden>
         <h3>Signed in</h3>
         <p class="text-muted" style="margin-bottom: 1.5rem" id="account-email"></p>
+
+        <!-- Purely a contact detail for account help — not tied to login or
+             any verification step. Optional, and never required. -->
+        <form class="field" id="account-phone-form" style="text-align: left; margin-bottom: 1.5rem">
+          <label for="account-phone">Phone number (optional)</label>
+          <input
+            type="tel"
+            id="account-phone"
+            name="phone"
+            placeholder="For account help — never required"
+            autocomplete="tel"
+          />
+          <p class="auth-message" id="account-phone-message" role="alert" hidden></p>
+          <button class="btn btn--secondary btn--small" type="submit" style="margin-top: 0.75rem">
+            Save phone number
+          </button>
+        </form>
+
         <button class="btn btn--secondary" type="button" id="account-signout">Log Out</button>
       </div>
 
@@ -384,6 +407,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/store.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/generate.js"></script>
   <script src="js/ui.js"></script>

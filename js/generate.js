@@ -173,6 +173,12 @@ const Generate = (function () {
     currentQuiz: currentQuiz,
     hasQuiz: function () { return !!currentQuiz(); },
     subject: function () { return session ? session.subject : null; },
+    /* extract | mirror | generate — the ORIGINAL classification, kept as-is
+       through any number of refine rounds. Saving needs to know whether a
+       quiz came from pasted questions or written from notes; result.mode
+       passed to presentQuiz turns into 'refine' after the first revision,
+       which would lose that distinction. */
+    mode: function () { return session ? session.mode : null; },
     reset: function () { session = null; },
   };
 })();

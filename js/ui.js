@@ -139,6 +139,7 @@
     item.addEventListener("click", function () {
       showScreen(item.dataset.screen);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (item.dataset.screen === "files") loadFiles();
     });
   });
 
@@ -204,22 +205,6 @@
     return body;
   }
 
-  /* Turn the last assistant bubble into one that offers to start the quiz. */
-  function addStartButton(container, questionCount) {
-    const button = document.createElement("button");
-    button.className = "btn btn--primary chat-start";
-    button.type = "button";
-    button.textContent = "Start quiz \u00b7 " + questionCount + " questions";
-    button.addEventListener("click", function () {
-      const quiz = Generate.currentQuiz();
-      if (quiz && QuizEngine.start(quiz)) {
-        showScreen("quiz");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    });
-    container.appendChild(button);
-  }
-
   let busy = false;
 
   function setBusy(state) {
@@ -269,12 +254,15 @@
      versus testing whether you actually know it — so this is a real choice
      rather than a setting to bury. */
   function addStartButton(container, quiz) {
+    const row = document.createElement("div");
+    row.className = "chat-choices";
+
     const button = document.createElement("button");
     button.className = "btn btn--primary chat-start";
     button.type = "button";
     button.textContent = "Start quiz \u00b7 " + quiz.questions.length + " questions";
     button.addEventListener("click", function () {
-      button.remove();
+      row.remove();
       const ask = document.createElement("p");
       ask.className = "chat-note";
       ask.textContent = "When should I show you the answers?";
@@ -282,6 +270,9 @@
       addChoices(container, [
         {
           label: "As I answer",
+          // quiz.id (set below, if Save was clicked first) rides along here \u2014
+          // QuizEngine keeps whatever's on the object it's handed, so it
+          // reaches showResults without either file needing to know why.
           run: function () { launchQuiz(quiz, "instant"); },
         },
         {
@@ -290,7 +281,53 @@
         },
       ]);
     });
-    container.appendChild(button);
+    row.appendChild(button);
+    row.appendChild(makeSaveButton(quiz));
+    container.appendChild(row);
+  }
+
+  /**
+   * A quiz is saved only when this is clicked \u2014 never automatically. The
+   * refine loop ("make it harder", "no true/false") can produce several
+   * drafts of one quiz in a single conversation; auto-saving every draft
+   * would fill My Files with near-duplicates. Only the version someone
+   * actually keeps gets a row in the database.
+   */
+  function makeSaveButton(quiz) {
+    if (!Auth.getUser()) {
+      // Guests can play a quiz but have nowhere to save it to. Saying so
+      // beats a button that fails the moment it's pressed.
+      const note = document.createElement("p");
+      note.className = "chat-note";
+      note.textContent = "Sign in to save this quiz for later.";
+      return note;
+    }
+
+    const button = document.createElement("button");
+    button.className = "btn btn--secondary chat-save";
+    button.type = "button";
+    button.textContent = "Save quiz";
+    button.addEventListener("click", async function () {
+      button.disabled = true;
+      button.textContent = "Saving\u2026";
+      try {
+        const sourceKind = Generate.mode(); // 'extract' | 'mirror' | 'generate'
+        const saved = await Store.saveQuiz(quiz, sourceKind);
+        // Mutating the SAME quiz object addStartButton's Start button closes
+        // over \u2014 from here on, starting this quiz carries the saved id with
+        // it, which is what lets the eventual score be recorded.
+        quiz.id = saved.id;
+        button.textContent = "Saved \u2713";
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Save quiz";
+        const note = document.createElement("p");
+        note.className = "chat-error";
+        note.textContent = error.message;
+        button.insertAdjacentElement("afterend", note);
+      }
+    });
+    return button;
   }
 
   /* Present a finished quiz: what happened, a start button, and a reminder
@@ -717,6 +754,29 @@
     showScreen("home");
   });
 
+  /* A contact detail only, never a login step — see auth.js's updatePhone
+     for why it's kept out of Supabase's actual phone-auth column. */
+  const accountPhoneForm = document.getElementById("account-phone-form");
+  const accountPhoneInput = document.getElementById("account-phone");
+  const accountPhoneMessage = document.getElementById("account-phone-message");
+
+  accountPhoneForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const submitButton = accountPhoneForm.querySelector("button[type=submit]");
+    submitButton.disabled = true;
+    accountPhoneMessage.hidden = true;
+
+    const result = await Auth.updatePhone(accountPhoneInput.value);
+
+    submitButton.disabled = false;
+    accountPhoneMessage.hidden = false;
+    accountPhoneMessage.textContent = result.ok
+      ? "Saved."
+      : result.message;
+    accountPhoneMessage.className =
+      "auth-message auth-message--" + (result.ok ? "info" : "error");
+  });
+
   /* ------------------------------------------------------------------------
      REDRAW ON SIGN-IN STATE CHANGE
      Called at startup and again every time the user logs in, logs out, or
@@ -734,14 +794,23 @@
 
     // --- My Files ---
     document.getElementById("files-guest").hidden = !guest;
-    // Signed in with nothing saved yet. (Real saved quizzes arrive with the
-    // database work; until then an empty list is the honest state.)
-    document.getElementById("files-empty").hidden = !signedIn;
+    // Whether it's actually empty, or has quizzes, is decided by loadFiles()
+    // below — it needs a database round trip, which this function (called on
+    // every sign-in/out) can't wait on. If My Files happens to already be
+    // open when auth state changes, kick off a fresh load rather than
+    // leaving stale content on screen.
+    if (!document.getElementById("screen-files").hidden) loadFiles();
 
     // --- Account ---
     document.getElementById("account-signed-in").hidden = !signedIn;
     document.getElementById("account-guest").hidden = signedIn;
     document.getElementById("account-email").textContent = Auth.getEmail() || "";
+    // Only overwrite the field from the account record if it isn't focused —
+    // an in-progress edit shouldn't be clobbered by a redraw from some other
+    // auth event firing in the background (a token refresh, another tab).
+    if (signedIn && document.activeElement !== accountPhoneInput) {
+      accountPhoneInput.value = Auth.getPhone();
+    }
     document.getElementById("account-subtitle").textContent = signedIn
       ? "Manage how you're signed in."
       : "Sign in to keep your study chats on every device.";
@@ -765,6 +834,128 @@
   }
 
   /* ------------------------------------------------------------------------
+     MY FILES
+     Fetches on every visit rather than caching — the list can change from
+     elsewhere (a quiz saved just now, one deleted from another tab), and a
+     handful of rows is cheap enough to just ask for again.
+     ------------------------------------------------------------------------ */
+  const filesList = document.getElementById("files-list");
+  const filesEmpty = document.getElementById("files-empty");
+
+  async function loadFiles() {
+    if (!Auth.getUser()) {
+      // Guest, or nobody's chosen yet — files-guest (or nothing) is already
+      // showing the right message; there's no account to query.
+      filesEmpty.hidden = true;
+      filesList.hidden = true;
+      return;
+    }
+
+    filesList.innerHTML = "";
+
+    let quizzes;
+    try {
+      quizzes = await Store.listQuizzes();
+    } catch (error) {
+      filesEmpty.hidden = true;
+      filesList.hidden = false;
+      const li = document.createElement("li");
+      li.className = "chat-error";
+      li.textContent = error.message;
+      filesList.appendChild(li);
+      return;
+    }
+
+    if (!quizzes.length) {
+      filesEmpty.hidden = false;
+      filesList.hidden = true;
+      return;
+    }
+    filesEmpty.hidden = true;
+
+    // A second query rather than a join: keeps store.js's two tables
+    // independent, and a failed score lookup (network hiccup) shouldn't
+    // block the quiz list itself from showing.
+    const scores = await Store.latestScores(quizzes.map(function (q) { return q.id; }));
+    quizzes.forEach(function (quiz) {
+      filesList.appendChild(renderFileCard(quiz, scores[quiz.id]));
+    });
+    filesList.hidden = false;
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function renderFileCard(quiz, latestAttempt) {
+    const li = document.createElement("li");
+    li.className = "file-card";
+
+    const info = document.createElement("div");
+    info.className = "file-card__info";
+
+    const title = document.createElement("h3");
+    title.textContent = quiz.title;
+    info.appendChild(title);
+
+    const parts = [];
+    if (quiz.subject) parts.push(quiz.subject);
+    parts.push(quiz.question_count + (quiz.question_count === 1 ? " question" : " questions"));
+    if (latestAttempt) {
+      parts.push(latestAttempt.score + "/" + latestAttempt.total + " · " + formatDate(latestAttempt.created_at));
+    }
+    const meta = document.createElement("p");
+    meta.className = "text-muted";
+    meta.textContent = parts.join(" · ");
+    info.appendChild(meta);
+
+    li.appendChild(info);
+
+    const actions = document.createElement("div");
+    actions.className = "file-card__actions";
+
+    const play = document.createElement("button");
+    play.className = "btn btn--secondary btn--small";
+    play.type = "button";
+    play.textContent = "Play";
+    play.addEventListener("click", function () {
+      // A fresh object each click — quiz.js is free to mutate what it's
+      // handed (shuffle does), and that shouldn't touch this card's own copy.
+      // Replaying always starts in instant-feedback mode rather than asking
+      // again; the chooser lives in the chat flow, and a file card isn't one.
+      launchQuiz(
+        { id: quiz.id, title: quiz.title, subject: quiz.subject, questions: quiz.questions },
+        "instant"
+      );
+    });
+    actions.appendChild(play);
+
+    const del = document.createElement("button");
+    del.className = "btn btn--secondary btn--small btn--danger";
+    del.type = "button";
+    del.textContent = "Delete";
+    del.addEventListener("click", async function () {
+      if (!window.confirm('Delete "' + quiz.title + '"? This can\'t be undone.')) return;
+      del.disabled = true;
+      try {
+        await Store.deleteQuiz(quiz.id);
+        li.remove();
+        if (!filesList.children.length) {
+          filesEmpty.hidden = false;
+          filesList.hidden = true;
+        }
+      } catch (error) {
+        del.disabled = false;
+        window.alert(error.message);
+      }
+    });
+    actions.appendChild(del);
+
+    li.appendChild(actions);
+    return li;
+  }
+
+  /* ------------------------------------------------------------------------
      STARTUP
      ------------------------------------------------------------------------ */
   // Expose the router so quiz.js can switch to the results screen.
@@ -778,6 +969,17 @@
     const score = outcome.score;
     const total = outcome.total;
     const percent = Math.round((score / total) * 100);
+
+    // outcome.quiz.id only exists if "Save quiz" was clicked before starting
+    // — see makeSaveButton, which sets it on this same quiz object. Nothing
+    // to record for a quiz that was never saved; the results still show.
+    if (outcome.quiz.id) {
+      Store.recordAttempt(outcome.quiz.id, score, total, outcome.answers).catch(
+        function (error) {
+          console.warn("Could not record attempt:", error);
+        }
+      );
+    }
 
     document.getElementById("final-score").textContent = score + "/" + total;
 

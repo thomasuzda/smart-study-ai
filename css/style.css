@@ -1939,3 +1939,65 @@ h3 {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+/* --------------------------------------------------------------------------
+   MY FILES — saved quizzes
+   -------------------------------------------------------------------------- */
+.file-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+}
+
+.file-card__info h3 {
+  font-size: calc(1.0625rem * var(--font-scale));
+  margin-bottom: 0.25rem;
+}
+
+.file-card__info p {
+  font-size: calc(0.875rem * var(--font-scale));
+}
+
+.file-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* A smaller footprint than the standard pill button, for actions that sit
+   inside a list row rather than standing alone. */
+.btn--small {
+  padding: 0.5rem 1rem;
+  font-size: calc(0.8125rem * var(--font-scale));
+}
+
+.btn--danger {
+  color: var(--wrong);
+  border-color: var(--wrong);
+}
+
+.btn--danger:hover {
+  background-color: color-mix(in srgb, var(--wrong) 12%, transparent);
+  border-color: var(--wrong);
+}
+
+@media (max-width: 480px) {
+  .file-card { flex-direction: column; align-items: stretch; }
+  .file-card__actions { justify-content: flex-end; }
+}
