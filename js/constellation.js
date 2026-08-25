@@ -47,7 +47,35 @@ const Constellation = (function () {
   let nodes = [];
   let frame = null;
   let linkDistance = 150; // recomputed from the box size in build()
+
+  /* Where the finger or cursor is, in canvas space. Recomputed once per frame
+     from `input` below rather than on every move event — reading an element's
+     position forces the browser to settle layout, and doing that on every
+     touchmove is a classic source of scroll jank. */
   const pointer = { x: -9999, y: -9999 };
+
+  /* The raw event position, in viewport coordinates. `active` is what makes
+     touch behave: a mouse hovers without pressing, but a finger only counts
+     while it's actually down. */
+  const input = { cx: 0, cy: 0, active: false };
+
+  /* Precomputed 'rgba(r,g,b,a)' strings, one per alpha step. Building these
+     with string concatenation and toFixed() inside the link loop meant a
+     fresh string per line per frame — the kind of allocation churn a phone
+     notices. Rebuilt only when the accent colour changes. */
+  const ALPHA_STEPS = 24;
+  let lineStyles = [];
+  let dotStyle = 'rgba(10,132,255,0.42)';
+
+  function buildStyles() {
+    const [r, g, b] = rgb;
+    lineStyles = [];
+    for (let i = 0; i <= ALPHA_STEPS; i++) {
+      const a = (i / ALPHA_STEPS) * CFG.lineAlpha;
+      lineStyles.push('rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')');
+    }
+    dotStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + CFG.dotAlpha + ')';
+  }
 
   function makeNode(x, y) {
     const angle = Math.random() * Math.PI * 2;
@@ -136,7 +164,17 @@ const Constellation = (function () {
 
   let rgb = [10, 132, 255];
 
+  /* One layout read per frame, not one per move event. */
+  function resolvePointer() {
+    if (!input.active) { pointer.x = pointer.y = -9999; return; }
+    const r = canvas.getBoundingClientRect();
+    pointer.x = input.cx - r.left;
+    pointer.y = input.cy - r.top;
+  }
+
   function paint() {
+    resolvePointer();
+
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
@@ -159,8 +197,7 @@ const Constellation = (function () {
         // Fade with distance, so links appear and dissolve rather than
         // snapping in and out as nodes drift past each other.
         const strength = 1 - d / linkDistance;
-        ctx.strokeStyle =
-          'rgba(' + r + ',' + g + ',' + b + ',' + (strength * CFG.lineAlpha).toFixed(3) + ')';
+        ctx.strokeStyle = lineStyles[(strength * ALPHA_STEPS) | 0];
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(c.x, c.y);
@@ -186,9 +223,8 @@ const Constellation = (function () {
       }
     }
 
+    ctx.fillStyle = dotStyle;
     for (const n of nodes) {
-      ctx.fillStyle =
-        'rgba(' + r + ',' + g + ',' + b + ',' + CFG.dotAlpha + ')';
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
       ctx.fill();
@@ -225,21 +261,33 @@ const Constellation = (function () {
     if (!w || !h) return;
     const prevW = width, prevH = height;
     width = w; height = h;
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    /* A phone reports devicePixelRatio 3, so a full-screen canvas at the old
+       cap of 2 meant clearing and repainting well over a million pixels every
+       frame. Capping to 1.5 on touch devices roughly halves that. The field is
+       dim dots and hairlines on near-black, so the softening is invisible in
+       a way it would not be on text — and smoothness is the thing being
+       bought. Desktops, which have the headroom, keep the sharper 2. */
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2);
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     rgb = toRGB(accent());
+    buildStyles();
     build(prevW, prevH);
     // Resizing clears the canvas; if the loop is stopped nothing would repaint
     // it and the background would simply vanish.
     if (frame === null) paint();
   }
 
+  /* Set by the IntersectionObserver in init(). Starts true so the first frame
+     paints before the observer has had a chance to report. */
+  let onScreen = true;
+
   function visible() {
     const landing = document.getElementById('screen-landing');
-    return !!landing && !landing.hidden && !document.hidden;
+    return !!landing && !landing.hidden && !document.hidden && onScreen;
   }
 
   function sync() {
@@ -289,24 +337,69 @@ const Constellation = (function () {
     }
     document.addEventListener('visibilitychange', sync);
 
-    /* Lines reaching for the cursor only make sense where there IS a cursor.
-       Bound unconditionally, this fired on touch too: dragging a thumb to
-       scroll the page dragged a bright fan of lines along with it, which read
-       as the background malfunctioning. Gate it on a device that can actually
-       hover with a fine pointer. */
-    if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      container.ownerDocument.addEventListener('pointermove', function (e) {
-        const rect = canvas.getBoundingClientRect();
-        pointer.x = e.clientX - rect.left;
-        pointer.y = e.clientY - rect.top;
-      });
-      container.ownerDocument.addEventListener('pointerleave', function () {
-        pointer.x = pointer.y = -9999;
-      });
+    /* The hero is only the first screenful. Once it has scrolled away there is
+       nothing to look at, but the loop was still clearing and repainting a
+       full-screen canvas every frame — wasted work competing with the scroll
+       itself for the main thread. This stops it as soon as the hero leaves,
+       and starts it again when it comes back. */
+    if (typeof IntersectionObserver === 'function') {
+      new IntersectionObserver(function (entries) {
+        onScreen = entries[0].isIntersecting;
+        sync();
+      }, { threshold: 0 }).observe(container);
     }
+
+    /* Touch and mouse both drive the field, but they can't be treated the
+       same. A mouse hovers, so it follows without pressing. A finger has no
+       hover, so it only counts while it's actually down — otherwise the fan
+       of lines sticks wherever you last tapped and looks broken.
+
+       Every listener is passive. A non-passive touch listener forces the
+       browser to wait and see whether the handler will cancel the gesture
+       before it can scroll, which is exactly the lag to avoid here.
+
+       Scrolling always wins: when the browser decides a drag is a scroll it
+       fires pointercancel, and the fan clears. So a vertical swipe scrolls
+       the page as normal, while a press or a sideways drag plays with the
+       field. Nothing fights the user for the gesture. */
+    const doc = container.ownerDocument;
+    const passive = { passive: true };
+
+    doc.addEventListener('pointerdown', function (e) {
+      input.cx = e.clientX;
+      input.cy = e.clientY;
+      input.active = true;
+    }, passive);
+
+    doc.addEventListener('pointermove', function (e) {
+      // A mouse needs no press; a finger must already be down.
+      if (e.pointerType === 'mouse') {
+        input.cx = e.clientX;
+        input.cy = e.clientY;
+        input.active = true;
+        return;
+      }
+      if (input.active) {
+        input.cx = e.clientX;
+        input.cy = e.clientY;
+      }
+    }, passive);
+
+    const release = function (e) {
+      // A mouse lifting its button hasn't left the screen, so it keeps
+      // following. A finger lifting is gone.
+      if (!e || e.pointerType !== 'mouse') input.active = false;
+    };
+
+    doc.addEventListener('pointerup', release, passive);
+    doc.addEventListener('pointercancel', release, passive);
+    doc.addEventListener('pointerleave', function () {
+      input.active = false;
+    }, passive);
 
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
       rgb = toRGB(accent());
+      buildStyles();
     });
 
     paint();
