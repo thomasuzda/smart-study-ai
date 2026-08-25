@@ -1874,12 +1874,30 @@ h3 {
      the separate switch for the callout. */
   -webkit-touch-callout: none;
 
-  /* The one gesture the browser may take from us here is a vertical scroll.
-     Anything else — a sideways or diagonal drag — belongs to the constellation,
-     and declaring that up front means the browser hands the touch straight to
-     the page instead of holding it back to see whether it starts a pinch or a
-     double-tap zoom. That wait is what made dragging feel late. */
-  touch-action: pan-y;
+  /* pan-y was tried first — "let vertical scroll through, keep the rest for
+     the field" — but a drag to move the constellation IS mostly vertical
+     motion, so the browser claimed almost every drag as a scroll before the
+     field ever saw it move. Interacting with the field has to come first: no
+     native gesture is taken from the browser here at all, so every drag,
+     any direction, drives the constellation. A tap still taps — touch-action
+     governs panning and zooming, not clicks, so the buttons below are
+     unaffected.
+
+     The real cost: touch can no longer swipe-scroll past the hero. That's an
+     acceptable trade only because "Create an account", "Sign in", and
+     "Continue as guest" all live inside the hero already — nothing you need
+     is past it. The top menu (Home / Study / My Files) still reaches every
+     screen without scrolling. What you lose is swiping down to read the four
+     description cards below; there's no way to keep both a full-drag field
+     and a swipe-through hero, since they're the same gesture. */
+  touch-action: none;
+}
+
+/* Someone who has motion reduced never gets pointer listeners at all — see
+   constellation.js — so blocking scroll here would trap them for a field that
+   can't react to them anyway. Scroll takes priority back in that case. */
+@media (prefers-reduced-motion: reduce) {
+  .landing__hero { touch-action: pan-y; }
 }
 
 /* The third and quietest option on the landing: no account at all. Smaller and
