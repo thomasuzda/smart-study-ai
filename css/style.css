@@ -18,33 +18,60 @@
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
     Helvetica, Arial, sans-serif;
 
-  /* Surfaces and text */
-  --bg: #fbfbfd;          /* page background — very slightly warm, not pure white */
-  --surface: #ffffff;     /* cards sitting on top of the background */
-  --surface-alt: #f5f5f7; /* subtly recessed areas */
-  --text: #1d1d1f;        /* near-black; true #000 looks harsh on screens */
-  --text-muted: #6e6e73;  /* secondary text — labels, hints, captions */
-  --border: #d2d2d7;
+  /* ---- Surfaces ----------------------------------------------------------
+     Warm near-black rather than #000. Pure black behind bright text causes
+     halation (the text appears to smear), the main source of eye strain in
+     dark UIs. Depth comes from these luminance steps, not shadows, because
+     shadows barely read on a dark ground. */
+  --bg: #14110f;
+  --surface: #1e1a17;      /* cards sitting on the background */
+  --surface-alt: #282320;  /* elevated or recessed areas */
+  --border: #3a332c;
 
-  /* The single accent color. Every interactive/primary element uses this and
-     nothing else uses it, which is what makes buttons obviously clickable. */
-  --accent: #0071e3;
-  --accent-hover: #0077ed;
-  --accent-soft: rgba(0, 113, 227, 0.1); /* translucent tint for selections */
+  /* ---- Text --------------------------------------------------------------
+     Warm off-white, never #fff, for the same halation reason. Contrast on
+     --bg: text ~15:1 (AAA), muted ~7:1 (AA), subtle ~4.6:1 (AA). */
+  --text: #f7f3ee;
+  --text-muted: #a89e92;
+  --text-subtle: #8d8478;  /* lightened from #7c7268: that measured 4:1,
+                              which only passes AA for large text */
 
-  /* Feedback colors, only for right/wrong answers */
-  --correct: #34c759;
-  --correct-soft: rgba(52, 199, 89, 0.12);
-  --wrong: #ff3b30;
-  --wrong-soft: rgba(255, 59, 48, 0.12);
+  /* ---- Accent ------------------------------------------------------------
+     MUST STAY A PLAIN #rrggbb LITERAL. js/constellation.js reads this token
+     with getPropertyValue() and parses it by hand via parseInt(hex, 16).
+     Custom properties come back AS AUTHORED, not as a computed colour — so
+     oklch(), hsl(), rgb(), a named colour or color-mix() each make parseInt
+     return NaN, every canvas fill becomes rgba(NaN,NaN,NaN), and the hero
+     silently renders nothing. No error, no exception, just an empty
+     background. Only change this format if you fix toRGB() first. */
+  --accent: #e8945c;        /* muted amber */
+  --accent-hover: #f2a570;
+  --accent-soft: rgba(232, 148, 92, 0.14);
+
+  /* Text sitting ON the accent. Warm near-black reads better on muted amber
+     than white does — white on this amber is close to failing contrast. */
+  --on-accent: #2a1b10;
+
+  /* ---- Feedback ----------------------------------------------------------
+     Deliberately muted, not neon. This app shows right/wrong colours over and
+     over, and saturated green/red on a dark ground is the single biggest
+     eye-strain offender in quiz UIs. */
+  --correct: #7fb069;
+  --correct-soft: rgba(127, 176, 105, 0.14);
+  --wrong: #d96c5f;
+  --wrong-soft: rgba(217, 108, 95, 0.14);
+
+  /* Scrim for the hero vignette. A radial gradient can't be a single token,
+     so the gradient is built from this with color-mix. */
+  --scrim: #14110f;
 
   /* Shape */
   --radius-card: 18px;
   --radius-input: 12px;
   --radius-pill: 980px; /* any radius larger than half the height = a full pill */
 
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.45);
 
   /* One easing curve for every animation, so motion feels consistent.
      This curve starts fast and settles gently — the iOS feel. */
@@ -58,28 +85,6 @@
   --content-width: 980px;
 }
 
-/* Dark mode. prefers-color-scheme reads the setting from macOS/iOS/Windows,
-   so the app follows the user's system preference with no toggle needed.
-   We only override the colors — every size, radius and animation stays. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-alt: #2c2c2e;
-    --text: #f5f5f7;
-    --text-muted: #98989d;
-    --border: #38383a;
-    --accent: #0a84ff;
-    --accent-hover: #409cff;
-    --accent-soft: rgba(10, 132, 255, 0.16);
-    --correct: #30d158;
-    --correct-soft: rgba(48, 209, 88, 0.16);
-    --wrong: #ff453a;
-    --wrong-soft: rgba(255, 69, 58, 0.16);
-    --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-    --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.5);
-  }
-}
 
 /* --------------------------------------------------------------------------
    2. RESET / BASE
@@ -319,7 +324,7 @@ body {
 .chat-message--assistant p { background: var(--surface-alt); border-top-left-radius: 5px; }
 .chat-avatar { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 10px; font-size: 0.9rem; }
 .chat-message--user { align-self: flex-end; }
-.chat-message--user p { color: #fff; background: var(--accent); border-top-right-radius: 5px; }
+.chat-message--user p { color: var(--on-accent); background: var(--accent); border-top-right-radius: 5px; }
 
 .chat-composer {
   display: flex;
@@ -335,10 +340,9 @@ body {
 .chat-composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .chat-composer textarea { flex: 1; max-height: 160px; resize: none; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; line-height: 1.45; padding: 0.5rem 0; }
 .chat-composer textarea::placeholder { color: var(--text-muted); }
-.chat-send { appearance: none; border: 0; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px; color: #fff; background: var(--accent); font: inherit; font-size: 1.35rem; line-height: 1; cursor: pointer; }
+.chat-send { appearance: none; border: 0; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px; color: var(--on-accent); background: var(--accent); font: inherit; font-size: 1.35rem; line-height: 1; cursor: pointer; }
 .chat-send:hover { background: var(--accent-hover); }
 .chat-send:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.chat-disclaimer { margin-top: 0.7rem; color: var(--text-muted); font-size: calc(0.75rem * var(--font-scale)); text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* --------------------------------------------------------------------------
@@ -404,7 +408,7 @@ h3 {
 
 .btn--primary {
   background-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* The micro-interaction that does the most work: a 1px lift plus a shadow
@@ -554,7 +558,7 @@ h3 {
 
 .answer.is-correct .answer__letter {
   background-color: var(--correct);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .answer.is-wrong {
@@ -564,7 +568,7 @@ h3 {
 
 .answer.is-wrong .answer__letter {
   background-color: var(--wrong);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Answers that were neither picked nor correct fade back so the eye goes
@@ -979,29 +983,6 @@ h3 {
   text-align: center;
 }
 
-/* Small capsule above the title. */
-.landing__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: calc(0.75rem * var(--font-scale));
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  background-color: var(--surface-alt);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  padding: 0.375rem 0.875rem;
-  margin-bottom: 1.75rem;
-}
-
-.landing__badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--accent);
-}
-
 .landing__title {
   font-size: calc(3.25rem * var(--font-scale));
   font-weight: 700;
@@ -1289,8 +1270,8 @@ h3 {
    system setting; this one screen is deliberately its own thing.
    -------------------------------------------------------------------------- */
 .landing {
-  background-color: #05070d;
-  color: #f5f7fa;
+  background-color: var(--bg);
+  color: var(--text);
   /* Cover the full viewport under the sticky header so there's no pale strip
      at the bottom on short pages. */
   min-height: calc(100vh - var(--header-height));
@@ -1302,7 +1283,7 @@ h3 {
 }
 
 .landing .landing__title {
-  color: #ffffff;
+  color: var(--text);
   /* Slightly tighter and heavier than the app default — at this size on black
      it otherwise reads as thin. */
   font-weight: 700;
@@ -1311,17 +1292,7 @@ h3 {
 
 .landing .landing__tagline,
 .landing .landing__note {
-  color: #9aa7bd;
-}
-
-.landing .landing__badge {
-  color: #93a7c4;
-  background-color: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.landing .landing__badge-dot {
-  background-color: var(--accent);
+  color: var(--text-muted);
 }
 
 /* Cards read as glass over the scene rather than solid blocks.
@@ -1340,14 +1311,14 @@ h3 {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-.landing .feature h3 { color: #eaf2ff; }
-.landing .feature p  { color: #93a3ba; }
+.landing .feature h3 { color: var(--text); }
+.landing .feature p  { color: var(--text-muted); }
 
 /* No glow. A halo around the button was the loudest thing left on the page,
    and buttons in serious software don't emit light. */
 .landing .btn--primary {
   background-color: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-weight: 600;
   box-shadow: none;
 }
@@ -1366,12 +1337,15 @@ h3 {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  /* Darkens the edges so hero text stays readable over a live canvas. Built
+     from --scrim with color-mix because a radial gradient can't be expressed
+     as a single token. */
   background: radial-gradient(
     ellipse at 50% 42%,
-    rgba(5, 7, 13, 0.9) 0%,
-    rgba(5, 7, 13, 0.7) 32%,
-    rgba(5, 7, 13, 0.25) 55%,
-    rgba(5, 7, 13, 0) 78%
+    color-mix(in srgb, var(--scrim) 90%, transparent) 0%,
+    color-mix(in srgb, var(--scrim) 70%, transparent) 32%,
+    color-mix(in srgb, var(--scrim) 25%, transparent) 55%,
+    transparent 78%
   );
 }
 
@@ -1505,44 +1479,7 @@ h3 {
 
 /* The background is faint now, so the tagline needs no shadow to survive it. */
 .landing__hero .landing__tagline {
-  color: #9aa7bd;
-}
-
-/* --------------------------------------------------------------------------
-   HEADER OVER THE LANDING
-   The landing is dark in both themes. In light mode the header would
-   otherwise be a white bar sitting on top of a black page.
-   -------------------------------------------------------------------------- */
-.on-landing .menu {
-  background-color: rgba(5, 7, 13, 0.72);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-.on-landing .menu__brand { color: #f1f5fb; }
-
-.on-landing .menu__item { color: #93a2b8; }
-
-.on-landing .menu__item:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.07);
-}
-
-.on-landing .menu__item[aria-current="page"] { color: #ffffff; }
-
-.on-landing .menu__sizer {
-  background-color: rgba(255, 255, 255, 0.07);
-}
-
-.on-landing .menu__sizer button { color: #e6ecf5; }
-
-.on-landing .menu__sizer button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-/* The page ends where the landing ends, so match the page behind it — without
-   this a pale strip shows under the dark section while scrolling past. */
-.on-landing {
-  background-color: #05070d;
+  color: var(--text-muted);
 }
 
 /* On a real phone the five controls plus the wordmark need more room than a
@@ -1609,16 +1546,6 @@ h3 {
   content: "";
   position: absolute;
   inset: -11px -4px;
-}
-
-/* The landing is dark in both themes, so the muted grey and accent chosen for
-   light backgrounds would both nearly vanish here. */
-.on-landing .landing__signin { color: #93a2b8; }
-
-.on-landing .landing__signin .link-button { color: #5aa9ff; }
-
-.on-landing .landing__signin .link-button:hover {
-  background-color: rgba(90, 169, 255, 0.14);
 }
 
 /* This whole block is hidden for signed-in users, and .landing__cta has no
@@ -1701,12 +1628,6 @@ h3 {
   inset: -12px -4px;
 }
 
-.on-landing .landing__guest .link-button { color: #7d8ba1; }
-
-.on-landing .landing__guest .link-button:hover {
-  color: #cfe0f5;
-  background-color: rgba(255, 255, 255, 0.07);
-}
 
 /* The header is translucent with a 20px blur so content stays visible sliding
    under it. Over the landing that blur sits directly on top of a canvas that
@@ -1718,7 +1639,14 @@ h3 {
    the need to composite the canvas underneath it. Every other screen keeps
    the translucent treatment. */
 .on-landing .menu {
-  background-color: #05070d;
+  /* Opaque, not translucent — and this is the ONE .on-landing rule that
+     survived the re-theme, because it is not about colour at all. The header's
+     20px backdrop blur sits directly over a canvas that repaints every frame,
+     so the browser re-runs a full-width gaussian blur 60 times a second on a
+     phone. Going opaque drops both the blur and the need to composite the
+     canvas beneath it. Do not "tidy this away" with the other .on-landing
+     rules — it is load-bearing for scroll performance on mobile. */
+  background-color: var(--bg);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
