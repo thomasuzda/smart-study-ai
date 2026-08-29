@@ -1,409 +1,334 @@
-/* ==========================================================================
-   Smart Study AI — design system
-   --------------------------------------------------------------------------
-   Everything visual lives here. The idea is "Apple simple": one accent color,
-   a lot of whitespace, and very few elements competing for attention.
-   ========================================================================== */
+/* ==============================================================================
+   Smart Study AI — Professional Dark Theme
+   Simple, clean design. No decorative elements. Focus on clarity and usability.
+   ============================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. DESIGN TOKENS
-   These are CSS custom properties ("variables"). Defining a color once here
-   and referring to it everywhere else means changing the whole app's look is
-   a one-line edit instead of a find-and-replace.
+   DESIGN TOKENS
    -------------------------------------------------------------------------- */
+
 :root {
-  /* The system font stack. On a Mac/iPhone this resolves to San Francisco,
-     Apple's own typeface — which is why the app feels native without us
-     shipping any font files. */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
     Helvetica, Arial, sans-serif;
 
-  /* ---- Surfaces ----------------------------------------------------------
-     Warm near-black rather than #000. Pure black behind bright text causes
-     halation (the text appears to smear), the main source of eye strain in
-     dark UIs. Depth comes from these luminance steps, not shadows, because
-     shadows barely read on a dark ground. */
   --bg: #14110f;
-  --surface: #1e1a17;      /* cards sitting on the background */
-  --surface-alt: #282320;  /* elevated or recessed areas */
+  --surface: #1e1a17;
+  --surface-alt: #282320;
   --border: #3a332c;
 
-  /* ---- Text --------------------------------------------------------------
-     Warm off-white, never #fff, for the same halation reason. Contrast on
-     --bg: text ~15:1 (AAA), muted ~7:1 (AA), subtle ~4.6:1 (AA). */
   --text: #f7f3ee;
   --text-muted: #a89e92;
-  --text-subtle: #8d8478;  /* lightened from #7c7268: that measured 4:1,
-                              which only passes AA for large text */
+  --text-subtle: #8d8478;
 
-  /* ---- Accent ------------------------------------------------------------
-     MUST STAY A PLAIN #rrggbb LITERAL. js/constellation.js reads this token
-     with getPropertyValue() and parses it by hand via parseInt(hex, 16).
-     Custom properties come back AS AUTHORED, not as a computed colour — so
-     oklch(), hsl(), rgb(), a named colour or color-mix() each make parseInt
-     return NaN, every canvas fill becomes rgba(NaN,NaN,NaN), and the hero
-     silently renders nothing. No error, no exception, just an empty
-     background. Only change this format if you fix toRGB() first. */
-  --accent: #e8945c;        /* muted amber */
+  --accent: #e8945c;
   --accent-hover: #f2a570;
-  --accent-soft: rgba(232, 148, 92, 0.14);
-
-  /* Text sitting ON the accent. Warm near-black reads better on muted amber
-     than white does — white on this amber is close to failing contrast. */
+  --accent-soft: rgba(232, 148, 92, 0.12);
   --on-accent: #2a1b10;
 
-  /* ---- Feedback ----------------------------------------------------------
-     Deliberately muted, not neon. This app shows right/wrong colours over and
-     over, and saturated green/red on a dark ground is the single biggest
-     eye-strain offender in quiz UIs. */
   --correct: #7fb069;
   --correct-soft: rgba(127, 176, 105, 0.14);
   --wrong: #d96c5f;
   --wrong-soft: rgba(217, 108, 95, 0.14);
 
-  /* Scrim for the hero vignette. A radial gradient can't be a single token,
-     so the gradient is built from this with color-mix. */
-  --scrim: #14110f;
-
-  /* Shape */
-  --radius-card: 18px;
-  --radius-input: 12px;
-  --radius-pill: 980px; /* any radius larger than half the height = a full pill */
-
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
   --shadow-lifted: 0 8px 32px rgba(0, 0, 0, 0.45);
 
-  /* One easing curve for every animation, so motion feels consistent.
-     This curve starts fast and settles gently — the iOS feel. */
+  --radius: 12px;
+  --radius-large: 18px;
+
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* The text-size control multiplies this. Every font-size in the file is
-     calc(<size> * var(--font-scale)), so one number resizes the whole app. */
   --font-scale: 1;
-
   --header-height: 56px;
   --content-width: 980px;
 }
 
-
 /* --------------------------------------------------------------------------
-   2. RESET / BASE
-   Browsers ship their own default margins and font sizes that differ between
-   them. Zeroing them out means our layout looks the same everywhere.
+   RESET / BASE
    -------------------------------------------------------------------------- */
+
 *,
 *::before,
 *::after {
-  box-sizing: border-box; /* padding counts INSIDE an element's width, which
-                             makes sizing far more predictable */
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 html {
-  -webkit-text-size-adjust: 100%; /* stop iOS Safari auto-inflating text */
+  font-family: var(--font);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
-  font-family: var(--font);
-  font-size: calc(1rem * var(--font-scale));
-  line-height: 1.5;
-  color: var(--text);
   background-color: var(--bg);
-  min-height: 100vh;
-  /* Smooths font rendering on macOS so text doesn't look overly bold */
-  -webkit-font-smoothing: antialiased;
-  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+  color: var(--text);
+  line-height: 1.5;
+  overflow-x: hidden;
 }
 
-/* Respect users who've asked their OS to reduce motion (vestibular disorders,
-   motion sensitivity). Accessibility, and it costs us two lines. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* --------------------------------------------------------------------------
-   3. TOP MENU
-   Like Word's ribbon but stripped to four items. Sticky so it's always
-   reachable; translucent + blurred so content scrolling under it stays
-   visible, which is a signature Apple treatment.
-   -------------------------------------------------------------------------- */
-.menu {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  height: var(--header-height);
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0 1.5rem;
-  border-bottom: 1px solid var(--border);
-
-  /* color-mix lets us take our own --surface variable and make it 72%
-     opaque, so it still adapts to dark mode instead of being hardcoded. */
-  background-color: color-mix(in srgb, var(--surface) 72%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-}
-
-.menu__brand {
-  font-size: calc(1rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-right: auto; /* pushes everything after it to the right side */
-  white-space: nowrap;
-}
-
-.menu__item {
-  /* Reset the browser's ugly default button styling */
-  appearance: none;
+button {
+  font: inherit;
+  cursor: pointer;
   border: none;
   background: none;
-  font-family: inherit;
-  font-size: calc(0.875rem * var(--font-scale));
-  color: var(--text-muted);
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-  transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
-  white-space: nowrap;
 }
 
-.menu__item:hover {
-  color: var(--text);
-  background-color: var(--surface-alt);
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  background: transparent;
 }
 
-/* aria-current is set by JS on the active screen's menu item. Styling the
-   ARIA attribute rather than a CSS class means the visual state and the
-   screen-reader state can never drift apart. */
-.menu__item[aria-current="page"] {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* The A− / A+ text size cluster */
-.menu__sizer {
-  display: flex;
-  align-items: center;
-  gap: 0.125rem;
-  padding: 0.125rem;
-  background-color: var(--surface-alt);
-  border-radius: var(--radius-pill);
-  margin: 0 0.25rem;
-}
-
-.menu__sizer button {
-  appearance: none;
-  border: none;
-  background: none;
-  font-family: inherit;
-  color: var(--text);
-  cursor: pointer;
-  width: 30px;
-  height: 26px;
-  border-radius: var(--radius-pill);
-  display: grid;
-  place-items: center;
-  transition: background-color 0.2s var(--ease);
-}
-
-.menu__sizer button:hover {
-  background-color: var(--surface);
-}
-
-/* Disabled at the min/max end of the scale */
-.menu__sizer button:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.menu__sizer button:first-child { font-size: 0.75rem; }
-.menu__sizer button:last-child  { font-size: 1.05rem; }
-
-/* --------------------------------------------------------------------------
-   4. SCREENS
-   The whole app is one HTML page. Each "screen" is a <section> and JS shows
-   exactly one at a time by toggling the hidden attribute. No page reloads,
-   no router library.
-   -------------------------------------------------------------------------- */
-.screen {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 3rem 1.5rem 4rem;
-  animation: screen-in 0.35s var(--ease);
-}
-
-/* [hidden] normally works on its own, but .screen sets display, which would
-   override it. !important guarantees hiding always wins. */
-.screen[hidden] {
+[hidden] {
   display: none !important;
 }
 
-@keyframes screen-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* A screen whose content should sit centered in the viewport (the home hero
-   and the results screen). Flexbox centering on both axes. */
-.screen--centered {
-  min-height: calc(100vh - var(--header-height));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding-top: 1.5rem;
-}
-
 /* --------------------------------------------------------------------------
-   STUDY CHAT
+   TYPOGRAPHY
    -------------------------------------------------------------------------- */
-.chat-screen {
-  min-height: calc(100vh - var(--header-height));
-  display: grid;
-  place-items: center;
-  padding-top: 2rem;
-}
 
-.chat-shell {
-  width: 100%;
-  max-width: 760px;
-  display: flex;
-  flex-direction: column;
-  min-height: min(680px, calc(100vh - 10rem));
-}
-
-.chat-intro {
-  text-align: center;
-  margin: auto auto 2.25rem;
-}
-
-.chat-intro__mark,
-.chat-avatar {
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  background: var(--accent-soft);
-  font-weight: 700;
-}
-
-.chat-intro__mark {
-  width: 44px;
-  height: 44px;
-  margin: 0 auto 1rem;
-  border-radius: 15px;
-  font-size: 1.3rem;
-}
-
-.chat-intro h1 { margin-bottom: 0.45rem; }
-.chat-intro p { color: var(--text-muted); font-size: calc(1.0625rem * var(--font-scale)); }
-
-.chat-messages {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.chat-message {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  max-width: 82%;
-  font-size: calc(0.975rem * var(--font-scale));
-}
-
-.chat-message p { padding: 0.8rem 1rem; border-radius: 18px; overflow-wrap: anywhere; }
-.chat-message--assistant p { background: var(--surface-alt); border-top-left-radius: 5px; }
-.chat-avatar { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 10px; font-size: 0.9rem; }
-.chat-message--user { align-self: flex-end; }
-.chat-message--user p { color: var(--on-accent); background: var(--accent); border-top-right-radius: 5px; }
-
-.chat-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.65rem;
-  padding: 0.6rem 0.65rem 0.6rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-}
-
-.chat-composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.chat-composer textarea { flex: 1; max-height: 160px; resize: none; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; line-height: 1.45; padding: 0.5rem 0; }
-.chat-composer textarea::placeholder { color: var(--text-muted); }
-.chat-send { appearance: none; border: 0; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px; color: var(--on-accent); background: var(--accent); font: inherit; font-size: 1.35rem; line-height: 1; cursor: pointer; }
-.chat-send:hover { background: var(--accent-hover); }
-.chat-send:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-
-/* --------------------------------------------------------------------------
-   5. TYPOGRAPHY
-   Tight negative letter-spacing on large text is the strongest single trick
-   for making headings look designed rather than default.
-   -------------------------------------------------------------------------- */
-h1 {
-  font-size: calc(3rem * var(--font-scale));
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
   font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.08;
-  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: calc(2.5rem * var(--font-scale));
+  margin-bottom: 0.5rem;
 }
 
 h2 {
-  font-size: calc(1.75rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: calc(1.875rem * var(--font-scale));
   margin-bottom: 0.5rem;
 }
 
 h3 {
-  font-size: calc(1.125rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-bottom: 0.375rem;
+  font-size: calc(1.25rem * var(--font-scale));
+  margin-bottom: 0.5rem;
 }
 
-.subtitle {
-  font-size: calc(1.1875rem * var(--font-scale));
-  color: var(--text-muted);
-  max-width: 34ch; /* ch = width of a "0". Capping line length around 34-70
-                      characters is the single biggest readability win. */
-  margin: 0 auto 2.5rem;
+p {
+  font-size: calc(1rem * var(--font-scale));
+  margin-bottom: 1rem;
 }
 
-.text-muted {
-  color: var(--text-muted);
+small,
+.text-small {
   font-size: calc(0.875rem * var(--font-scale));
 }
 
 /* --------------------------------------------------------------------------
-   6. BUTTONS
-   Big, bold, fully rounded. The pill shape plus a solid accent fill makes it
-   unmistakable that these are tappable.
+   MENU / HEADER
    -------------------------------------------------------------------------- */
-.btn {
-  appearance: none;
-  border: none;
-  font-family: inherit;
-  font-size: calc(1.0625rem * var(--font-scale));
+
+.menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.5rem;
+  z-index: 100;
+  font-size: calc(0.95rem * var(--font-scale));
+}
+
+.menu__brand {
   font-weight: 600;
-  padding: 1rem 2.5rem;
-  border-radius: var(--radius-pill);
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+.menu__item {
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  transition: color 0.2s var(--ease), background-color 0.2s var(--ease);
+}
+
+.menu__item:hover {
+  color: var(--text);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.menu__item[aria-current="page"] {
+  color: var(--accent);
+}
+
+.menu__sizer {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.menu__sizer button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: all 0.2s var(--ease);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.menu__sizer button:hover {
+  background-color: var(--surface-alt);
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------------------
+   MAIN CONTENT
+   -------------------------------------------------------------------------- */
+
+main {
+  margin-top: var(--header-height);
+}
+
+.screen {
+  display: none;
+  min-height: calc(100vh - var(--header-height));
+}
+
+.screen:not([hidden]) {
+  display: flex;
+}
+
+/* --------------------------------------------------------------------------
+   LANDING PAGE
+   -------------------------------------------------------------------------- */
+
+.landing {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.landing__hero {
+  max-width: 700px;
+  margin-bottom: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.landing__title {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.landing__tagline {
+  font-size: calc(1.1rem * var(--font-scale));
+  color: var(--text-muted);
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+.landing__cta {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.landing__signin,
+.landing__guest {
+  font-size: calc(0.95rem * var(--font-scale));
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.link-button {
+  color: var(--accent);
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: background-color 0.25s var(--ease), transform 0.15s var(--ease),
-    box-shadow 0.25s var(--ease), opacity 0.25s var(--ease);
-  /* Stops a double-tap on mobile from zooming the page instead of clicking */
-  touch-action: manipulation;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s var(--ease);
+}
+
+.link-button:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.landing__below {
+  max-width: 1100px;
+  width: 100%;
+}
+
+.landing__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  list-style: none;
+  margin-bottom: 2rem;
+}
+
+.feature {
+  padding: 2rem;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  text-align: left;
+  transition: all 0.2s var(--ease);
+}
+
+.feature:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.feature h3 {
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.feature p {
+  font-size: calc(0.95rem * var(--font-scale));
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.landing__note {
+  text-align: center;
+  font-size: calc(0.9rem * var(--font-scale));
+  color: var(--text-subtle);
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   BUTTONS
+   -------------------------------------------------------------------------- */
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition: all 0.2s var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn--primary {
@@ -411,1335 +336,634 @@ h3 {
   color: var(--on-accent);
 }
 
-/* The micro-interaction that does the most work: a 1px lift plus a shadow
-   that grows. It reads as the button rising toward your cursor. Tiny, fast,
-   and it's most of the difference between "styled" and "designed". */
 .btn--primary:hover {
   background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.btn--primary:active {
+  transform: scale(0.98);
 }
 
 .btn--secondary {
-  background-color: transparent;
-  color: var(--accent);
-  border: 1px solid var(--border);
+  background-color: var(--surface-alt);
+  color: var(--text);
 }
 
 .btn--secondary:hover {
-  background-color: var(--accent-soft);
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-/* :active fires while the mouse/finger is held down. Dropping the lift and
-   shrinking slightly gives the button a physical "press" feel. The shorter
-   transition makes the press feel immediate while the release still eases. */
-.btn:active {
-  transform: scale(0.97);
-  box-shadow: none;
-  transition-duration: 0.08s;
-}
-
-/* Keyboard focus ring. :focus-visible shows it for keyboard users but NOT for
-   mouse clicks — so keyboard navigation stays usable without adding visual
-   noise for everyone else. */
-.btn:focus-visible,
-.menu__item:focus-visible,
-.answer:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .btn--large {
-  font-size: calc(1.1875rem * var(--font-scale));
-  padding: 1.125rem 3rem;
+  padding: 0.875rem 2rem;
+  font-size: calc(1.05rem * var(--font-scale));
+  min-width: 180px;
 }
 
-/* --------------------------------------------------------------------------
-   7. QUIZ SCREEN
-   -------------------------------------------------------------------------- */
-
-/* Progress bar — a wrapper track with an inner fill whose width JS animates */
-.progress {
-  height: 6px;
-  background-color: var(--surface-alt);
-  border-radius: var(--radius-pill);
-  overflow: hidden; /* keeps the fill's corners inside the rounded track */
-  margin-bottom: 0.75rem;
-}
-
-.progress__fill {
-  height: 100%;
-  width: 0%;
-  background-color: var(--accent);
-  border-radius: var(--radius-pill);
-  transition: width 0.4s var(--ease);
-}
-
-.quiz__meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 2.5rem;
+.btn--small {
+  padding: 0.5rem 0.75rem;
   font-size: calc(0.875rem * var(--font-scale));
-  color: var(--text-muted);
 }
 
-/* Stacked answer list — one full-width button per row, as you chose */
-.answers {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
-}
-
-.answer {
-  /* Full-width tappable row */
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  text-align: left;
-  appearance: none;
-  font-family: inherit;
-  font-size: calc(1.0625rem * var(--font-scale));
-  color: var(--text);
-  background-color: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.125rem 1.25rem;
-  cursor: pointer;
-  transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease),
-    transform 0.15s var(--ease);
-  touch-action: manipulation;
-}
-
-.answer:hover:not(:disabled) {
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
-}
-
-.answer:active:not(:disabled) {
-  transform: scale(0.99);
-}
-
-/* The A/B/C/D circle at the left of each answer */
-.answer__letter {
-  flex-shrink: 0; /* never let the circle squash when text is long */
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: var(--surface-alt);
-  color: var(--text-muted);
-  font-size: calc(0.8125rem * var(--font-scale));
-  font-weight: 600;
-  display: grid;
-  place-items: center;
-  transition: background-color 0.2s var(--ease), color 0.2s var(--ease);
-}
-
-.answer__text {
-  flex: 1; /* take all remaining width */
-  overflow-wrap: break-word;
-  min-width: 0; /* lets flex children actually shrink so text can wrap */
-}
-
-/* After answering, JS adds .is-correct / .is-wrong and disables the buttons */
-.answer:disabled {
-  cursor: default;
-}
-
-.answer.is-correct {
-  border-color: var(--correct);
-  background-color: var(--correct-soft);
-}
-
-.answer.is-correct .answer__letter {
-  background-color: var(--correct);
-  color: var(--on-accent);
-}
-
-.answer.is-wrong {
-  border-color: var(--wrong);
-  background-color: var(--wrong-soft);
-}
-
-.answer.is-wrong .answer__letter {
+.btn--danger {
   background-color: var(--wrong);
-  color: var(--on-accent);
+  color: white;
 }
 
-/* Answers that were neither picked nor correct fade back so the eye goes
-   straight to the two that matter */
-.answer.is-muted {
-  opacity: 0.45;
-}
-
-/* The explanation panel that slides in after answering */
-.feedback {
-  border-radius: var(--radius-card);
-  padding: 1.125rem 1.25rem;
-  margin-bottom: 2rem;
-  background-color: var(--surface-alt);
-  animation: feedback-in 0.3s var(--ease);
-}
-
-@keyframes feedback-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.feedback__verdict {
-  font-weight: 600;
-  font-size: calc(1rem * var(--font-scale));
-  margin-bottom: 0.25rem;
-}
-
-.feedback--correct .feedback__verdict { color: var(--correct); }
-.feedback--wrong   .feedback__verdict { color: var(--wrong); }
-
-.feedback__explanation {
-  font-size: calc(0.9375rem * var(--font-scale));
-  color: var(--text-muted);
-  overflow-wrap: break-word;
-}
-
-/* Right-aligned Next / See results button */
-.quiz__actions {
-  display: flex;
-  justify-content: flex-end;
+.btn--danger:hover {
+  opacity: 0.9;
 }
 
 /* --------------------------------------------------------------------------
-   8. RESULTS SCREEN
-   -------------------------------------------------------------------------- */
-.score {
-  font-size: calc(4.5rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: var(--accent);
-  margin-bottom: 0.25rem;
-}
-
-.results__actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 2rem;
-}
-
-/* Per-question review list */
-.review {
-  width: 100%;
-  text-align: left;
-  margin-top: 3.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.review__item {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.125rem 1.25rem;
-  /* A colored left edge gives an at-a-glance right/wrong scan without
-     needing to read anything */
-  border-left: 4px solid var(--border);
-}
-
-.review__question {
-  font-weight: 600;
-  font-size: calc(1rem * var(--font-scale));
-  margin-bottom: 0.5rem;
-  overflow-wrap: break-word;
-}
-
-/* --------------------------------------------------------------------------
-   9. AUTH — login, sign up, and guest mode
+   FORMS
    -------------------------------------------------------------------------- */
 
-/* The stack of choices on the home screen: Create Account / Log In / Guest.
-   Constraining the width keeps them from stretching into ugly wide bars on a
-   desktop monitor. */
-.auth-choices {
+.form-group {
+  margin-bottom: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 22rem;
-  margin: 0 auto;
+  gap: 0.5rem;
 }
 
-.auth-choices .btn {
-  width: 100%;
-}
-
-/* "Continue as guest" is deliberately the quietest option on the screen —
-   a plain text link rather than a button. Visual weight communicates which
-   path we actually recommend without needing a sentence to say so. */
-.link-button {
-  appearance: none;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: calc(0.9375rem * var(--font-scale));
-  color: var(--accent);
-  cursor: pointer;
-  padding: 0.75rem;
-  border-radius: var(--radius-input);
-  transition: background-color 0.2s var(--ease);
-}
-
-.link-button:hover {
-  background-color: var(--accent-soft);
-}
-
-.link-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* A small print note under the guest option */
-/* --- The login / sign up form --- */
-.auth-form {
-  width: 100%;
-  max-width: 22rem;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  text-align: left;
+label {
+  font-weight: 500;
+  font-size: calc(0.95rem * var(--font-scale));
+  color: var(--text);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.5rem;
 }
 
-.field label {
-  font-size: calc(0.8125rem * var(--font-scale));
-  font-weight: 600;
+.field input,
+.field textarea {
+  padding: 0.75rem;
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: all 0.2s var(--ease);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
   color: var(--text-muted);
 }
 
-.field input {
-  font-family: inherit;
-  /* 16px minimum on mobile — anything smaller makes iOS Safari zoom the page
-     in when the field is focused, which is jarring and hard to undo. */
-  font-size: max(16px, calc(1rem * var(--font-scale)));
-  color: var(--text);
-  background-color: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-input);
-  padding: 0.875rem 1rem;
-  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
-  width: 100%;
-}
-
-.field input:focus {
-  outline: none; /* replaced by the ring below, which matches our accent */
+.field input:focus,
+.field textarea:focus {
+  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.field input::placeholder {
-  color: var(--text-muted);
-  opacity: 0.7;
-}
-
-/* Message strip under the form — used for both errors and successes, with
-   the modifier class deciding the color. */
-.auth-message {
-  font-size: calc(0.875rem * var(--font-scale));
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-input);
-  line-height: 1.4;
-  animation: feedback-in 0.25s var(--ease);
-}
-
-.auth-message--error {
-  background-color: var(--wrong-soft);
-  color: var(--wrong);
-}
-
-.auth-message--success {
-  background-color: var(--correct-soft);
-  color: var(--correct);
-}
-
-.auth-message--info {
-  background-color: var(--surface-alt);
-  color: var(--text-muted);
-}
-
-/* The "Don't have an account? Sign up" line under the form */
-.auth-switch {
-  text-align: center;
-  font-size: calc(0.875rem * var(--font-scale));
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
-
-.auth-switch .link-button {
-  padding: 0.25rem 0.375rem;
-  font-size: inherit;
-}
-
-/* A button that's mid-request. Dimmed and unclickable so the form can't be
-   submitted twice while the first attempt is still in flight. */
-.btn:disabled,
-.btn.is-loading {
-  opacity: 0.6;
-  cursor: default;
-}
-
 /* --------------------------------------------------------------------------
-   10. CARDS
+   CHAT SCREEN
    -------------------------------------------------------------------------- */
-.card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 2rem;
-  box-shadow: var(--shadow);
-  text-align: center;
-  max-width: 34rem;
+
+.chat-screen {
+  flex-direction: column;
+  padding: 0;
+}
+
+.chat-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 800px;
   margin: 0 auto;
+  width: 100%;
 }
 
-/* --------------------------------------------------------------------------
-   11. HOME SCREEN ANIMATION
-   --------------------------------------------------------------------------
-   The whole trick to making motion look professional is restraint: short
-   (under ~450ms), small travel (~14px, not half the screen), and a slight
-   stagger so elements arrive in sequence instead of all at once. Anything
-   that bounces, spins, or slides in from off-screen reads as amateur.
-   -------------------------------------------------------------------------- */
-
-/* Elements marked with this class start invisible and slightly low, then
-   animate into place. `both` fill mode is what keeps them hidden during the
-   delay — without it they'd flash at full opacity before the delay elapses. */
-.rise {
-  opacity: 0;
-  animation: rise-in 0.55s var(--ease) both;
+.chat-intro {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
 }
 
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
+.chat-intro__mark {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--accent);
 }
 
-/* The stagger. Each step is 80ms — long enough to read as a sequence, short
-   enough that the whole cascade finishes in about half a second. */
-.rise--1 { animation-delay: 0.00s; }
-.rise--2 { animation-delay: 0.08s; }
-.rise--3 { animation-delay: 0.16s; }
-.rise--4 { animation-delay: 0.24s; }
-.rise--5 { animation-delay: 0.32s; }
-.rise--6 { animation-delay: 0.40s; }
+.chat-intro h1 {
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
 
-/* --------------------------------------------------------------------------
-   REDUCED MOTION
-   Some people get motion sickness from animation, and their OS has a setting
-   to say so. We honor it: the demo card still shows a fully answered
-   question, it just stops moving. The information survives; the motion goes.
-   -------------------------------------------------------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  .rise,
-  .demo__option.is-entering {
-    animation: none;
+.chat-intro p {
+  color: var(--text-muted);
+  font-size: calc(0.95rem * var(--font-scale));
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-message {
+  display: flex;
+  gap: 1rem;
+  animation: fadeIn 0.3s var(--ease);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
     opacity: 1;
     transform: none;
   }
-
-  .btn:hover {
-    transform: none;
-  }
 }
 
-/* --------------------------------------------------------------------------
-   13. RESPONSIVE
-   Only two breakpoints. Everything above scales fluidly because it's built
-   from flexbox and relative units rather than fixed pixel widths.
-   -------------------------------------------------------------------------- */
-@media (max-width: 700px) {
-  .screen {
-    padding: 2rem 1.25rem 3rem;
-  }
-
-  h1 { font-size: calc(2.25rem * var(--font-scale)); }
-
-  .score { font-size: calc(3.5rem * var(--font-scale)); }
-
-  .subtitle { font-size: calc(1.0625rem * var(--font-scale)); }
-
-  /* Full-width buttons are much easier to hit with a thumb */
-  .btn--large,
-  .results__actions .btn {
-    width: 100%;
-  }
-
-  .quiz__actions .btn { width: 100%; }
+.chat-message--assistant {
+  align-self: flex-start;
+  max-width: 85%;
 }
 
-@media (max-width: 600px) {
-  .menu {
-    padding: 0 0.875rem;
-    gap: 0;
-  }
-
-  .menu__brand {
-    /* Hide the "Smart Study AI" wordmark so the four controls always fit */
-    font-size: calc(0.9375rem * var(--font-scale));
-  }
-
-  .menu__item {
-    padding: 0.5rem 0.625rem;
-    font-size: calc(0.8125rem * var(--font-scale));
-  }
+.chat-message--user {
+  align-self: flex-end;
+  max-width: 85%;
 }
 
-/* --------------------------------------------------------------------------
-   CHAT — generated quiz results
-   The composer now holds a question-count picker alongside the send button,
-   and assistant replies can carry a button plus explanatory notes.
-   -------------------------------------------------------------------------- */
-
-.chat-controls {
+.chat-avatar {
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: var(--surface-alt);
   flex-shrink: 0;
+  font-size: 0.9rem;
 }
 
-/* The bubble body wraps text plus any buttons, so they stack tidily. */
-.chat-message__body {
+.chat-message p {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  margin: 0;
+  word-wrap: break-word;
+}
+
+.chat-message--assistant p {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.chat-message--user p {
+  background-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.chat-composer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  min-width: 0; /* lets long pasted text wrap instead of stretching the bubble */
+  gap: 0.75rem;
+  align-items: flex-end;
 }
 
-.chat-start {
-  align-self: flex-start;
+#chat-input {
+  flex: 1;
+  padding: 0.75rem;
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  max-height: 120px;
+  resize: vertical;
+  transition: all 0.2s var(--ease);
 }
 
-.chat-note {
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
+#chat-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.chat-error {
-  font-size: calc(0.9375rem * var(--font-scale));
-  color: var(--wrong);
+.chat-send {
+  padding: 0.75rem 1rem;
+  background-color: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  transition: all 0.2s var(--ease);
 }
 
-/* A disabled composer while a request is in flight, so it's obvious that
-   pressing send again won't help. */
-.chat-composer textarea:disabled,
+.chat-send:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
 .chat-send:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* The chip that says what a follow-up message will do. */
-
-/* Setting display on an element that also uses the `hidden` attribute breaks
-   hidden, because a display rule outranks the browser's built-in
-   [hidden] { display: none }. This restores it. Any element in this file that
-   JS toggles with .hidden needs the same guard. */
-.chat-context[hidden] {
-  display: none;
-}
-
 .chat-context {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
-  background-color: var(--surface-alt);
-  border-radius: var(--radius-pill);
-  padding: 0.4rem 0.5rem 0.4rem 0.9rem;
-  margin-bottom: 0.5rem;
-}
-
-/* --------------------------------------------------------------------------
-   LANDING PAGE
-   The first screen a new visitor sees. Same restraint as the rest of the app:
-   one accent colour, generous space, no gradients or emoji.
-   -------------------------------------------------------------------------- */
-.landing {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 4rem 1.5rem 5rem;
-  text-align: center;
-}
-
-.landing__title {
-  font-size: calc(3.25rem * var(--font-scale));
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin-bottom: 1rem;
-}
-
-.landing__tagline {
-  font-size: calc(1.1875rem * var(--font-scale));
-  color: var(--text-muted);
-  max-width: 32rem;
-  margin: 0 auto 2.5rem;
-  line-height: 1.5;
-}
-
-.landing__cta {
-  margin-bottom: 4rem;
-}
-
-/* Feature cards. Column counts are set explicitly at each breakpoint further
-   down, so all four always fill their row. */
-.landing__features {
-  list-style: none;
-  display: grid;
-  /* Fixed counts, not auto-fit: with exactly four cards auto-fit lands on
-     three columns at most desktop widths and orphans the fourth on a row
-     of its own. Explicit steps keep every row full. */
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  text-align: left;
-  margin-bottom: 3rem;
-}
-
-.feature {
+  padding: 0.75rem 1.5rem;
   background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.5rem;
-  transition: border-color 0.25s var(--ease), transform 0.25s var(--ease),
-    box-shadow 0.25s var(--ease), opacity 0.5s var(--ease);
-}
-
-/* --------------------------------------------------------------------------
-   SCROLL REVEAL
-   Paired with js/reveal.js. The hidden state lives on [data-reveal] rather
-   than on .feature so any element can opt in, and the revealed state is a
-   plain class the observer adds once.
-
-   Note the guard: if JavaScript fails to load or throws before the observer
-   is attached, [data-reveal] would hide this content permanently. The
-   @media (scripting: none) rule below makes the no-JS case fail VISIBLE, and
-   reveal.js itself reveals everything immediately when IntersectionObserver
-   is missing or reduced motion is on.
-   -------------------------------------------------------------------------- */
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
-}
-
-[data-reveal].is-revealed {
-  opacity: 1;
-  transform: none;
-}
-
-@media (scripting: none) {
-  [data-reveal] { opacity: 1; transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-reveal] { opacity: 1; transform: none; transition: none; }
-}
-
-.feature:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-}
-
-.feature h3 {
-  font-size: calc(1rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-bottom: 0.5rem;
-}
-
-.feature p {
-  font-size: calc(0.9375rem * var(--font-scale));
+  border-top: 1px solid var(--border);
+  font-size: calc(0.9rem * var(--font-scale));
   color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.landing__note {
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
-}
-
-/* The staggered entrance, reused from the old home screen. */
-@media (prefers-reduced-motion: reduce) {
-  .rise { animation: none; opacity: 1; transform: none; }
-  .feature:hover { transform: none; }
-}
-
-@media (max-width: 600px) {
-  .landing__title { font-size: calc(2.25rem * var(--font-scale)); }
-}
-
-/* --------------------------------------------------------------------------
-   VOID FIELD
-   The three.js particle canvas behind the landing page. Sits underneath the
-   content and ignores the pointer, so it can never intercept a click.
-   -------------------------------------------------------------------------- */
-.landing {
-  position: relative; /* makes this the anchor the canvas positions against */
-  z-index: 0;
-}
-
-.constellation {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.constellation canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* Keep the landing content above the canvas. */
-/* Choice buttons inside an assistant reply. */
-.chat-choices {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.chat-choice {
-  font-size: calc(0.875rem * var(--font-scale));
-  padding: 0.5rem 1rem;
-}
-
-.quiz__meta-right {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.875rem;
-}
-
-.quiz__shuffle {
-  appearance: none;
-  font: inherit;
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  padding: 0.25rem 0.75rem;
-  cursor: pointer;
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
-}
-
-.quiz__shuffle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* Chat replies are inserted as plain text, so newlines need preserving or a
-   multi-paragraph answer collapses into one run-on line. pre-wrap keeps line
-   breaks while still wrapping long lines normally. */
-.chat-message__body p {
-  white-space: pre-wrap;
 }
 
 /* --------------------------------------------------------------------------
-   QUIZ — list layout
-   Every question on the page at once, answerable in any order.
+   QUIZ SCREEN
    -------------------------------------------------------------------------- */
 
-/* The bar stays put while you scroll a long quiz, so the score and Submit are
-   always one glance away. */
+.quiz-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
 .quiz__bar {
-  position: sticky;
-  top: var(--header-height);
-  z-index: 50;
-  background-color: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--surface);
+  border-radius: var(--radius-large);
 }
 
 .quiz__bar-inner {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 0.875rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  font-size: calc(0.875rem * var(--font-scale));
-  color: var(--text-muted);
+  flex: 1;
 }
 
-.quiz__submit {
-  padding: 0.5rem 1.25rem;
-  font-size: calc(0.875rem * var(--font-scale));
+.progress-bar {
+  height: 4px;
+  background-color: var(--surface-alt);
+  border-radius: 2px;
+  overflow: hidden;
 }
 
-.questions {
-  list-style: none;
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.progress-fill {
+  height: 100%;
+  background-color: var(--accent);
+  transition: width 0.3s var(--ease);
 }
 
 .qcard {
-  position: relative;
   background-color: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.5rem 1.5rem 1.5rem 3.75rem;
-  transition: border-color 0.25s var(--ease);
+  border-radius: var(--radius-large);
+  padding: 2rem;
 }
 
-/* The number sits in the padding gutter, so long question text wraps cleanly
-   underneath itself instead of around the number. */
 .qcard__number {
-  position: absolute;
-  left: 1.25rem;
-  top: 1.5rem;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
-  background-color: var(--surface-alt);
+  font-size: calc(0.85rem * var(--font-scale));
   color: var(--text-muted);
-  font-size: calc(0.8125rem * var(--font-scale));
-  font-weight: 600;
-  display: grid;
-  place-items: center;
+  margin-bottom: 0.5rem;
 }
 
 .qcard__text {
-  font-size: calc(1.0625rem * var(--font-scale));
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.4;
-  margin-bottom: 1rem;
+  font-size: calc(1.1rem * var(--font-scale));
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 1.5rem;
 }
 
-.qcard.is-revealed {
-  border-color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+.answer {
+  display: block;
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+  background-color: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
 }
 
-/* The option you picked, before any right/wrong is shown. This is what makes
-   "answer now, find out later" mode legible — otherwise you cannot tell which
-   ones you have already done. */
-.answer.is-chosen {
+.answer:hover {
   border-color: var(--accent);
-  background-color: var(--accent-soft);
-}
-
-.answer.is-correct {
-  border-color: var(--correct);
-  background-color: var(--correct-soft);
-}
-
-.answer.is-wrong {
-  border-color: var(--wrong);
-  background-color: var(--wrong-soft);
+  background-color: rgba(232, 148, 92, 0.08);
 }
 
 .answer:disabled {
   cursor: default;
 }
 
-.quiz__actions {
-  max-width: var(--content-width);
-  margin: 2.5rem auto 4rem;
-  padding: 0 1.5rem;
-  display: flex;
-  justify-content: center;
+.answer.is-correct {
+  border-color: var(--correct);
+  background-color: var(--correct-soft);
+  color: var(--text);
 }
 
-/* Results — only the questions that were missed. */
+.answer.is-wrong {
+  border-color: var(--wrong);
+  background-color: var(--wrong-soft);
+  color: var(--text);
+}
+
+.quiz__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+/* --------------------------------------------------------------------------
+   RESULTS SCREEN
+   -------------------------------------------------------------------------- */
+
+.results-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.score {
+  font-size: calc(3rem * var(--font-scale));
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.score-label {
+  font-size: calc(1rem * var(--font-scale));
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.review {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
 .review__item {
-  text-align: left;
   background-color: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  border-radius: var(--radius-large);
+  padding: 1.5rem;
+  text-align: left;
 }
 
-.review__question { font-weight: 600; margin-bottom: 0.625rem; }
-.review__yours    { color: var(--wrong); font-size: calc(0.9375rem * var(--font-scale)); }
-.review__correct  { color: var(--correct); font-size: calc(0.9375rem * var(--font-scale)); }
-.review__why      { color: var(--text-muted); font-size: calc(0.9375rem * var(--font-scale)); margin-top: 0.5rem; }
-
-@media (max-width: 600px) {
-  .qcard { padding: 1.25rem 1rem 1.25rem 3.25rem; }
-  .qcard__number { left: 0.875rem; top: 1.25rem; }
-  .quiz__bar-inner { padding: 0.75rem 1rem; flex-wrap: wrap; }
-}
-
-/* --------------------------------------------------------------------------
-   LANDING HERO — dark treatment
-   The particle scene uses additive blending, where overlapping points brighten
-   each other. That only reads as a glow against something dark, so the landing
-   is dark in both light and dark mode. The rest of the app still follows the
-   system setting; this one screen is deliberately its own thing.
-   -------------------------------------------------------------------------- */
-.landing {
-  background-color: var(--bg);
-  color: var(--text);
-  /* Cover the full viewport under the sticky header so there's no pale strip
-     at the bottom on short pages. */
-  min-height: calc(100vh - var(--header-height));
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-top: 3rem;
-  padding-bottom: 3rem;
-}
-
-.landing .landing__title {
-  color: var(--text);
-  /* Slightly tighter and heavier than the app default — at this size on black
-     it otherwise reads as thin. */
-  font-weight: 700;
-  letter-spacing: -0.035em;
-}
-
-.landing .landing__tagline,
-.landing .landing__note {
-  color: var(--text-muted);
-}
-
-/* Cards read as glass over the scene rather than solid blocks.
-   No backdrop-filter: it was written when the canvas ran the full height of
-   the landing, but the canvas is the hero only now, so what sits behind these
-   cards is a flat dark background. Blurring a flat colour returns the same
-   flat colour — it cost four blurred layers, recomputed as the page scrolls
-   beneath them, to change nothing on screen. */
-.landing .feature {
-  background-color: rgba(255, 255, 255, 0.035);
-  border-color: rgba(255, 255, 255, 0.09);
-}
-
-.landing .feature:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.landing .feature h3 { color: var(--text); }
-.landing .feature p  { color: var(--text-muted); }
-
-/* No glow. A halo around the button was the loudest thing left on the page,
-   and buttons in serious software don't emit light. */
-.landing .btn--primary {
-  background-color: var(--accent);
-  color: var(--on-accent);
-  font-weight: 600;
-  box-shadow: none;
-}
-
-.landing .btn--primary:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
-}
-
-/* A vignette so the text always has contrast, however bright the particles
-   behind it happen to be at that moment. */
-.landing::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  /* Darkens the edges so hero text stays readable over a live canvas. Built
-     from --scrim with color-mix because a radial gradient can't be expressed
-     as a single token. */
-  background: radial-gradient(
-    ellipse at 50% 42%,
-    color-mix(in srgb, var(--scrim) 90%, transparent) 0%,
-    color-mix(in srgb, var(--scrim) 70%, transparent) 32%,
-    color-mix(in srgb, var(--scrim) 25%, transparent) 55%,
-    transparent 78%
-  );
-}
-
-/* Fallback when the scene can't run (no WebGL, or reduced motion): a static
-   gradient, so the landing still looks deliberate rather than plain black. */
-
-
-/* --------------------------------------------------------------------------
-   LANDING — hero gets the screen to itself
-   The particle bust needs empty space to be legible. Cards sitting on top of
-   it hid the head entirely, so the hero now fills the viewport and the cards
-   sit below it.
-   -------------------------------------------------------------------------- */
-.landing {
-  display: block;          /* was flex-centred; the two blocks now stack */
-  padding-top: 0;
-  padding-bottom: 0;
-  min-height: auto;
-}
-
-.landing__hero {
-  position: relative;
-  z-index: 1;
-  min-height: calc(100vh - var(--header-height));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem 4rem;
-  /* Sit the text in the upper half, leaving the lower half for the shoulders
-     to sweep through unobstructed. */
-  padding-bottom: 22vh;
-}
-
-.landing__below {
-  position: relative;
-  z-index: 1;
-  padding: 0 1.5rem 4rem;
-}
-
-/* The canvas covers the whole landing section, hero and cards alike. */
-.constellation {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-@media (max-width: 600px) {
-  .landing__hero {
-    min-height: calc(100svh - var(--header-height));
-  }
-}
-
-/* Back-to-chat button in the quiz bar. */
-.quiz__bar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  min-width: 0;
-}
-
-.quiz__back {
-  appearance: none;
-  font: inherit;
-  font-size: calc(0.8125rem * var(--font-scale));
-  color: var(--text-muted);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  padding: 0.25rem 0.75rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s var(--ease), border-color 0.2s var(--ease);
-}
-
-.quiz__back:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* --------------------------------------------------------------------------
-   GRADIENT RING HERO
-   The canvas paints the headline itself, so the hero content sits lower and
-   the ring gets the middle of the screen.
-   -------------------------------------------------------------------------- */
-/* The headline is ordinary HTML again, so the hero is a normal centred stack. */
-.landing__hero {
-  justify-content: center;
-  padding-bottom: 4rem;
-}
-
-.landing__hero .landing__tagline {
-  max-width: 34rem;
-}
-
-/* Visually hidden but still read aloud and indexed — the page must have a
-   real <h1>, even though the visible one is painted on canvas. */
-/* The canvas fills the hero's height only, not the whole scrollable landing —
-   but it breaks out of the 60rem text column so the field reaches both edges
-   of the screen instead of stopping short on a wide monitor.
-
-   The landing is the one screen that runs edge to edge. Every other screen is
-   capped at a readable column by .screen, and that cap was cutting the field
-   off at 960px on a wide monitor. Rather than break the canvas out with 100vw
-   — which counts the scrollbar and left the page scrollable 8px sideways — the
-   cap moves off the section and onto the content inside it. The canvas can
-   then just fill the hero, and the hero is the width of the display. */
-.landing {
-  max-width: none;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-/* The cards keep the readable column the section gave up. The hero doesn't
-   need one: its children are already centred and individually capped. */
-.landing__below {
-  max-width: 60rem;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.landing__hero { position: relative; }
-
-.landing__hero > .constellation {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-.landing__hero > *:not(.constellation) { position: relative; z-index: 1; }
-
-/* The background is faint now, so the tagline needs no shadow to survive it. */
-.landing__hero .landing__tagline {
-  color: var(--text-muted);
-}
-
-/* On a real phone the five controls plus the wordmark need more room than a
-   375px screen has (they total ~443px even after the 600px tightening above).
-   The hero already says "Smart Study AI" in 40px type, so the wordmark is the
-   one thing here that can go without costing the user anything. */
-@media (max-width: 540px) {
-  .menu {
-    padding: 0 0.75rem;
-    justify-content: space-between;
-  }
-
-  .menu__brand { display: none; }
-
-  .menu__item {
-    padding: 0.5rem 0.5rem;
-  }
-
-  .menu__sizer { margin: 0; }
-
-  .menu__sizer button {
-    width: 26px;
-    height: 24px;
-  }
-}
-
-/* Feature cards: 1 → 2 → 4 across, so the four cards always fill their row.
-   Written mobile-first (min-width) to match the fixed base of 1fr above. */
-@media (min-width: 560px) {
-  .landing__features { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (min-width: 1000px) {
-  .landing__features { grid-template-columns: repeat(4, 1fr); }
-}
-
-/* --------------------------------------------------------------------------
-   SIGN IN UNDER THE HERO BUTTON
-   Quieter than "Start studying" on purpose — signing in is the secondary
-   path, and a second loud button beside the first makes neither one read as
-   the thing to do.
-   -------------------------------------------------------------------------- */
-/* Signing in is the quieter of the two, so it's a line of text rather than a
-   second button — one clear primary action, with the alternative underneath. */
-.landing__signin {
-  margin: 1.25rem 0 0;
-  font-size: calc(0.9375rem * var(--font-scale));
-  color: var(--text-muted);
-}
-
-.landing__signin .link-button {
-  /* Tight enough to read as part of the sentence rather than a control. */
-  padding: 0.125rem 0.375rem;
-  font-size: inherit;
-  font-weight: 600;
-  position: relative;
-}
-
-/* That tight padding leaves a 22px-tall tap target, half what a thumb needs.
-   An invisible overlay grows the hit area to 44px without moving anything or
-   inflating the hover pill. The gap to the button above is 20px, so it can't
-   swallow taps meant for "Create an account". */
-.landing__signin .link-button::after {
-  content: "";
-  position: absolute;
-  inset: -11px -4px;
-}
-
-/* This whole block is hidden for signed-in users, and .landing__cta has no
-   display rule of its own — but state it, so a future layout change here
-   can't silently defeat [hidden]. */
-.landing__cta[hidden] { display: none; }
-
-/* The Account item is hidden for guests now that signing in lives on the
-   landing. Buttons aren't display:flex, but a stray display rule elsewhere
-   would silently defeat [hidden], so state it. */
-.menu__item[hidden] { display: none; }
-
-/* --------------------------------------------------------------------------
-   NO ACCIDENTAL SELECTION IN THE HERO
-   The canvas is pointer-events: none so it can never swallow a click on the
-   button. That means a drag across it lands on the text underneath, and
-   moving the mouse to play with the field highlighted the headline in blue.
-
-   Suppressing selection here costs only the ability to drag-select marketing
-   copy, which nobody needs. The text is still ordinary HTML — user-select
-   affects the mouse alone, so screen readers and search engines are unchanged.
-   Scoped to the hero: quiz questions and chat replies stay selectable, since
-   copying those is a real thing to want.
-   -------------------------------------------------------------------------- */
-.landing__hero {
-  -webkit-user-select: none; /* Safari, including iOS */
-  user-select: none;
-
-  /* A tap shouldn't flash a grey highlight box over the hero. */
-  -webkit-tap-highlight-color: transparent;
-
-  /* iOS shows its own selection UI on a press-and-hold — the magnifier and
-     the Copy/Look Up bar — and it fires on the hero text before the finger
-     has moved far enough to count as a drag. Pressing to play with the field
-     kept summoning it. user-select above stops the selection itself; this is
-     the separate switch for the callout. */
-  -webkit-touch-callout: none;
-
-  /* touch-action: none was tried, on the reasoning that a click-drag needs
-     every direction free. It broke worse: the hero measures TALLER than the
-     viewport on a real phone (788px hero in an 844px screen, bottom edge at
-     852px) — meaning the hero already covers the ENTIRE visible screen on
-     load. With the whole visible area off-limits to panning, there was no
-     square inch left to start a scroll from. Not a tuning problem — a trap,
-     confirmed by measuring hero height against viewport height directly.
-
-     Scrolling has to win, unconditionally — a page that won't scroll is a
-     broken page under any interpretation, however the decoration behaves.
-     touch-action stays pan-y: a short press still reaches lines toward the
-     touch point (see js/constellation.js) until the drag travels far enough
-     for the browser to claim it as a scroll, same as a light touch does on
-     desktop before you move away. Continuous full-screen drag control of the
-     field isn't achievable on a phone at the same time as a guaranteed
-     ability to scroll away from a hero that size — they are the same
-     gesture. That's a real product trade-off, not a bug to keep patching. */
-  touch-action: pan-y;
-}
-
-/* The third and quietest option on the landing: no account at all. Smaller and
-   greyer than the sign-in line above it, so the order of preference reads
-   top to bottom without any of the three being hidden. */
-.landing__guest {
-  margin: 0.5rem 0 0;
-  font-size: calc(0.875rem * var(--font-scale));
-}
-
-.landing__guest .link-button {
-  padding: 0.125rem 0.375rem;
-  font-size: inherit;
+.review__question {
   font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.review__yours {
+  font-size: calc(0.9rem * var(--font-scale));
   color: var(--text-muted);
-  position: relative;
+  margin-bottom: 0.5rem;
 }
 
-/* Same 44px hit area as the sign-in link — the visible text is only ~20px
-   tall, which is fine for a mouse and awkward for a thumb. */
-.landing__guest .link-button::after {
-  content: "";
-  position: absolute;
-  inset: -12px -4px;
+.review__correct {
+  font-size: calc(0.9rem * var(--font-scale));
+  color: var(--correct);
+  margin-bottom: 0.5rem;
 }
 
-
-/* The header is translucent with a 20px blur so content stays visible sliding
-   under it. Over the landing that blur sits directly on top of a canvas that
-   repaints every frame, so the browser has to re-run it every frame too — a
-   full-width gaussian blur, 60 times a second, on a phone.
-
-   On the landing the bar is near-black over a near-black page, so the blur is
-   buying nothing you can see. Making it opaque there drops both the blur and
-   the need to composite the canvas underneath it. Every other screen keeps
-   the translucent treatment. */
-.on-landing .menu {
-  /* Opaque, not translucent — and this is the ONE .on-landing rule that
-     survived the re-theme, because it is not about colour at all. The header's
-     20px backdrop blur sits directly over a canvas that repaints every frame,
-     so the browser re-runs a full-width gaussian blur 60 times a second on a
-     phone. Going opaque drops both the blur and the need to composite the
-     canvas beneath it. Do not "tidy this away" with the other .on-landing
-     rules — it is load-bearing for scroll performance on mobile. */
-  background-color: var(--bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+.review__why {
+  font-size: calc(0.9rem * var(--font-scale));
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }
 
 /* --------------------------------------------------------------------------
-   MY FILES — saved quizzes
+   FILES SCREEN
    -------------------------------------------------------------------------- */
+
 .file-list {
-  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-width: 40rem;
-  margin: 0 auto;
+  gap: 1rem;
+  list-style: none;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
 }
 
 .file-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
   background-color: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  padding: 1.25rem 1.5rem;
-  text-align: left;
+  border-radius: var(--radius-large);
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s var(--ease);
 }
 
-.file-card__info h3 {
-  font-size: calc(1.0625rem * var(--font-scale));
+.file-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.file-card__info {
+  flex: 1;
+}
+
+.file-card__title {
+  font-weight: 500;
+  color: var(--text);
   margin-bottom: 0.25rem;
 }
 
-.file-card__info p {
-  font-size: calc(0.875rem * var(--font-scale));
+.file-card__meta {
+  font-size: calc(0.85rem * var(--font-scale));
+  color: var(--text-muted);
 }
 
 .file-card__actions {
   display: flex;
   gap: 0.5rem;
-  flex-shrink: 0;
 }
 
-/* A smaller footprint than the standard pill button, for actions that sit
-   inside a list row rather than standing alone. */
-.btn--small {
-  padding: 0.5rem 1rem;
-  font-size: calc(0.8125rem * var(--font-scale));
+/* --------------------------------------------------------------------------
+   AUTH SCREENS
+   -------------------------------------------------------------------------- */
+
+.auth-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--header-height));
+  padding: 2rem 1.5rem;
 }
 
-.btn--danger {
+.auth-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  padding: 2.5rem;
+  max-width: 400px;
+  width: 100%;
+}
+
+.auth-card h2 {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-error {
+  background-color: var(--wrong-soft);
   color: var(--wrong);
-  border-color: var(--wrong);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  font-size: calc(0.9rem * var(--font-scale));
 }
 
-.btn--danger:hover {
-  background-color: color-mix(in srgb, var(--wrong) 12%, transparent);
-  border-color: var(--wrong);
+.form-success {
+  background-color: var(--correct-soft);
+  color: var(--correct);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  font-size: calc(0.9rem * var(--font-scale));
 }
 
-@media (max-width: 480px) {
-  .file-card { flex-direction: column; align-items: stretch; }
-  .file-card__actions { justify-content: flex-end; }
+/* --------------------------------------------------------------------------
+   ACCOUNT SCREEN
+   -------------------------------------------------------------------------- */
+
+.account-shell {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.account-section {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.account-section h3 {
+  margin-bottom: 1.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 600px) {
+  .menu {
+    padding: 0 1rem;
+    gap: 0.5rem;
+    font-size: calc(0.85rem * var(--font-scale));
+  }
+
+  .menu__brand {
+    font-size: calc(0.95rem * var(--font-scale));
+  }
+
+  .menu__item {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .menu__sizer {
+    margin-left: 0.5rem;
+  }
+
+  h1 {
+    font-size: calc(1.75rem * var(--font-scale));
+  }
+
+  h2 {
+    font-size: calc(1.375rem * var(--font-scale));
+  }
+
+  .landing__hero {
+    margin-bottom: 2rem;
+  }
+
+  .landing__tagline {
+    font-size: calc(1rem * var(--font-scale));
+  }
+
+  .landing__features {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-shell {
+    max-width: 100%;
+  }
+
+  .chat-message--assistant,
+  .chat-message--user {
+    max-width: 95%;
+  }
+
+  .auth-card {
+    padding: 1.5rem;
+  }
+
+  .quiz-shell {
+    padding: 1rem 1.5rem;
+  }
+
+  .qcard {
+    padding: 1.5rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   DARK MODE / REDUCED MOTION
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
