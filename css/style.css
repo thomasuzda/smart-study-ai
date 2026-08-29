@@ -206,13 +206,47 @@ main {
 }
 
 @keyframes pageFlip {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) rotateY(45deg);
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
+}
+
+@keyframes logoEntrance {
+  0% {
+    opacity: 0;
+    transform: translateX(-100px) translateY(0);
+  }
+  25% {
+    transform: translateX(-50px) translateY(-30px);
+  }
+  50% {
+    transform: translateX(0) translateY(-60px);
+  }
+  75% {
+    transform: translateX(50px) translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes slideUpFade {
   from {
     opacity: 0;
-    transform: translateX(20px) rotateY(5deg);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateX(0) rotateY(0);
+    transform: translateY(0);
   }
 }
 
@@ -241,6 +275,7 @@ main {
   color: var(--text);
   font-weight: 700;
   letter-spacing: -0.03em;
+  animation: logoEntrance 0.8s var(--ease) backwards;
 }
 
 .landing__tagline {
@@ -248,6 +283,7 @@ main {
   color: var(--text-muted);
   max-width: 500px;
   line-height: 1.6;
+  animation: slideUpFade 0.6s var(--ease) 0.2s backwards;
 }
 
 .landing__cta {
@@ -257,6 +293,7 @@ main {
   align-items: center;
   margin-top: 1rem;
   width: 100%;
+  animation: slideUpFade 0.6s var(--ease) 0.4s backwards;
 }
 
 .landing__signin,
