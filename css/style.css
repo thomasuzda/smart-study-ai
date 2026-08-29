@@ -202,6 +202,18 @@ main {
 
 .screen:not([hidden]) {
   display: flex;
+  animation: pageFlip 0.35s var(--ease);
+}
+
+@keyframes pageFlip {
+  from {
+    opacity: 0;
+    transform: translateX(20px) rotateY(5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotateY(0);
+  }
 }
 
 /* --------------------------------------------------------------------------
