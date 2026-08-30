@@ -203,47 +203,89 @@ main {
 
 .screen:not([hidden]) {
   display: flex;
-  animation: pageFlip 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: pageFlip 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform-origin: left center;
+  position: relative;
+}
+
+/* Fold crease and shadow */
+.screen:not([hidden])::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(0,0,0,0.3) 25%,
+    rgba(0,0,0,0.5) 50%,
+    rgba(0,0,0,0.3) 75%,
+    transparent 100%);
+  opacity: 0;
+  animation: creaseFade 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 10;
 }
 
 @keyframes pageFlip {
   0% {
-    /* Page starts nearly invisible, edge-on from right */
+    /* Page starts edge-on, invisible */
     opacity: 0;
     transform: rotateY(90deg);
-    filter: brightness(0.3);
+    clip-path: polygon(0% 0%, 0% 100%, 5% 100%, 5% 0%);
+    filter: brightness(0.2);
   }
-  20% {
-    /* Page edge becoming visible, starting flip */
-    opacity: 0.25;
-    transform: rotateY(70deg);
+  15% {
+    /* Page edge appearing */
+    opacity: 0.2;
+    transform: rotateY(75deg);
+    clip-path: polygon(0% 0%, 0% 100%, 20% 100%, 20% 0%);
+    filter: brightness(0.35);
+  }
+  30% {
+    /* Page bending in, showing curve */
+    opacity: 0.5;
+    transform: rotateY(50deg) skewY(2deg);
+    clip-path: polygon(0% 0%, 0% 100%, 50% 105%, 50% -5%);
+    filter: brightness(0.55);
+  }
+  50% {
+    /* Peak of flip - page edge-on, showing fold/crease */
+    opacity: 0.75;
+    transform: rotateY(0deg) skewY(0deg);
+    clip-path: polygon(0% -10%, 0% 110%, 100% 105%, 100% -5%);
     filter: brightness(0.45);
   }
-  40% {
-    /* Page swinging into view, mid-flip */
-    opacity: 0.65;
-    transform: rotateY(35deg);
-    filter: brightness(0.65);
+  70% {
+    /* Page coming down on other side */
+    opacity: 0.95;
+    transform: rotateY(-40deg) skewY(-1deg);
+    clip-path: polygon(50% 0%, 50% 100%, 100% 100%, 100% 0%);
+    filter: brightness(0.8);
   }
-  60% {
-    /* Page at the peak - edge-on center, darkest point (back of page visible) */
-    opacity: 0.85;
-    transform: rotateY(0deg);
-    filter: brightness(0.5);
-  }
-  80% {
-    /* Page almost fully landed, becoming bright again */
-    opacity: 0.98;
+  90% {
+    /* Page almost flat */
+    opacity: 1;
     transform: rotateY(-5deg);
-    filter: brightness(0.95);
+    clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 0%);
+    filter: brightness(0.98);
   }
   100% {
-    /* Page fully settled, completely visible and flat */
+    /* Page fully flat and visible */
     opacity: 1;
     transform: rotateY(0deg);
+    clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 0%);
     filter: brightness(1);
   }
+}
+
+@keyframes creaseFade {
+  0% { opacity: 0; }
+  30% { opacity: 0; }
+  50% { opacity: 1; }
+  70% { opacity: 0; }
+  100% { opacity: 0; }
 }
 
 @keyframes pageFlipBack {
