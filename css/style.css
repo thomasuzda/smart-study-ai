@@ -209,38 +209,66 @@ main {
 @keyframes pageFlip {
   0% {
     opacity: 0;
-    transform: perspective(1200px) translateX(100%) rotateY(90deg) translateZ(-200px);
+    transform: perspective(2000px) rotateX(0deg) rotateY(85deg) translateZ(-150px) skewY(5deg);
+    filter: brightness(0.7);
   }
-  50% {
-    opacity: 0.95;
-    transform: perspective(1200px) translateX(20px) rotateY(30deg) translateZ(-100px);
+  20% {
+    opacity: 0.3;
+    transform: perspective(2000px) rotateX(-5deg) rotateY(70deg) translateZ(-120px) skewY(3deg);
+    filter: brightness(0.8);
   }
-  75% {
+  45% {
+    opacity: 0.8;
+    transform: perspective(2000px) rotateX(-10deg) rotateY(40deg) translateZ(-60px) skewY(1deg);
+    filter: brightness(0.9);
+  }
+  70% {
     opacity: 1;
-    transform: perspective(1200px) translateX(5px) rotateY(5deg) translateZ(-20px);
+    transform: perspective(2000px) rotateX(-8deg) rotateY(15deg) translateZ(-20px) skewY(0deg);
+    filter: brightness(0.95);
+  }
+  85% {
+    opacity: 1;
+    transform: perspective(2000px) rotateX(-3deg) rotateY(3deg) translateZ(0px) skewY(0deg);
+    filter: brightness(1);
   }
   100% {
     opacity: 1;
-    transform: perspective(1200px) translateX(0) rotateY(0) translateZ(0);
+    transform: perspective(2000px) rotateX(0deg) rotateY(0deg) translateZ(0) skewY(0deg);
+    filter: brightness(1);
   }
 }
 
 @keyframes pageFlipBack {
   0% {
     opacity: 0;
-    transform: perspective(1200px) translateX(-100%) rotateY(-90deg) translateZ(-200px);
+    transform: perspective(2000px) rotateX(0deg) rotateY(-85deg) translateZ(-150px) skewY(-5deg);
+    filter: brightness(0.7);
   }
-  50% {
-    opacity: 0.95;
-    transform: perspective(1200px) translateX(-20px) rotateY(-30deg) translateZ(-100px);
+  20% {
+    opacity: 0.3;
+    transform: perspective(2000px) rotateX(-5deg) rotateY(-70deg) translateZ(-120px) skewY(-3deg);
+    filter: brightness(0.8);
   }
-  75% {
+  45% {
+    opacity: 0.8;
+    transform: perspective(2000px) rotateX(-10deg) rotateY(-40deg) translateZ(-60px) skewY(-1deg);
+    filter: brightness(0.9);
+  }
+  70% {
     opacity: 1;
-    transform: perspective(1200px) translateX(-5px) rotateY(-5deg) translateZ(-20px);
+    transform: perspective(2000px) rotateX(-8deg) rotateY(-15deg) translateZ(-20px) skewY(0deg);
+    filter: brightness(0.95);
+  }
+  85% {
+    opacity: 1;
+    transform: perspective(2000px) rotateX(-3deg) rotateY(-3deg) translateZ(0px) skewY(0deg);
+    filter: brightness(1);
   }
   100% {
     opacity: 1;
-    transform: perspective(1200px) translateX(0) rotateY(0) translateZ(0);
+    transform: perspective(2000px) rotateX(0deg) rotateY(0deg) translateZ(0) skewY(0deg);
+    filter: brightness(1);
   }
 }
 
