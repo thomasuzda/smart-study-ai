@@ -15,7 +15,7 @@
 
   <!-- ?v= is bumped whenever style.css changes. Without it browsers keep
        serving a cached copy and design changes appear not to deploy. -->
-  <link rel="stylesheet" href="css/style.css?v=5" />
+  <link rel="stylesheet" href="css/style.css?v=13" />
 
   <!-- This tiny script runs BEFORE the page renders, on purpose. It reads the
        saved text size and applies it immediately, so a user who picked large
@@ -39,7 +39,7 @@
   <header class="menu">
     <span class="menu__brand">Smart Study AI</span>
 
-    <button class="menu__item" type="button" data-screen="landing">Home</button>
+    <button class="menu__item" type="button" data-screen="notes">Notes</button>
     <button class="menu__item" type="button" data-screen="home">Study</button>
     <!-- My Files had no button at all after the chat redesign, which left the
          whole screen stranded. Restored so saved quizzes stay reachable. -->
@@ -134,6 +134,15 @@
             </button>
           </p>
         </div>
+
+        <!-- Shown instead of the block above once Auth.hasChosen() is true, so
+             a returning user is offered the app rather than the sign-up pitch
+             they already answered. renderAuthState owns the toggle. -->
+        <div class="landing__cta" id="landing-start" hidden>
+          <button class="btn btn--primary btn--large" type="button" id="landing-start-button">
+            Start studying
+          </button>
+        </div>
       </div>
 
       <div class="landing__below">
@@ -191,7 +200,8 @@
 
         <form class="chat-composer" id="chat-form">
           <label class="sr-only" for="chat-input">Message Smart Study AI</label>
-          <textarea id="chat-input" rows="1" placeholder="Paste your notes or an existing quiz…"></textarea>
+          <textarea id="chat-input" rows="1" data-scales="1"
+                    placeholder="Paste your notes or an existing quiz…"></textarea>
           <!-- How many questions used to be a dropdown here, but it asked
                before there was anything to count. It's now a follow-up
                question, asked only once we know a quiz is actually being
@@ -359,6 +369,78 @@
     </section>
 
     <!-- ====================================================================
+         SCREEN — NOTES
+         Class notes kept on this device. A sidebar of classes, each holding
+         its own notes ("Biology 101" > "Chapter 1"), and one editor pane.
+
+         The tree itself is built in js/ui.js with createElement/textContent
+         rather than written here, because it is user data — the same rule the
+         chat bubbles and file cards follow. Only the chrome lives in the HTML.
+         ==================================================================== -->
+    <section class="screen notes-screen" id="screen-notes" hidden>
+      <div class="notes-shell">
+        <aside class="notes-sidebar">
+          <div class="notes-sidebar__head">
+            <h2>Classes</h2>
+            <button class="btn btn--secondary btn--small" type="button" id="notes-add-class">
+              New class
+            </button>
+          </div>
+          <p class="notes-device-note">Saved on this device.</p>
+
+          <!-- Private browsing blocks localStorage outright. Saying so beats
+               letting someone type into a screen that cannot save. -->
+          <p class="notes-blocked" id="notes-blocked" role="alert" hidden></p>
+
+          <ul class="notes-classes" id="notes-classes" hidden></ul>
+
+          <div class="notes-empty" id="notes-empty" hidden>
+            <h3>No classes yet</h3>
+            <p class="notes-hint">
+              Make a class for each subject, then add notes inside it.
+            </p>
+            <button class="btn btn--primary btn--small" type="button" id="notes-empty-add">
+              Create your first class
+            </button>
+          </div>
+        </aside>
+
+        <div class="notes-detail">
+          <div class="notes-placeholder" id="notes-placeholder">
+            <p class="notes-hint">Pick a note on the left, or add one to get started.</p>
+          </div>
+
+          <div class="notes-editor" id="notes-editor" hidden>
+            <div class="field">
+              <label class="sr-only" for="note-title">Note title</label>
+              <input type="text" id="note-title" data-scales="1.05"
+                     placeholder="Untitled note" maxlength="120" />
+            </div>
+            <div class="field notes-editor__bodywrap">
+              <label class="sr-only" for="note-body">Note</label>
+              <textarea id="note-body" data-scales="0.95"
+                        placeholder="Paste or type your notes…"></textarea>
+            </div>
+            <div class="notes-editor__bar">
+              <span class="notes-status" id="note-status" aria-live="polite"></span>
+              <div class="notes-editor__actions">
+                <button class="btn btn--primary btn--small" type="button" id="note-save">
+                  Save
+                </button>
+                <button class="btn btn--secondary btn--small" type="button" id="note-quiz">
+                  Make a quiz from this
+                </button>
+                <button class="btn btn--secondary btn--small btn--danger" type="button" id="note-delete">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
          SCREEN 4 — MY FILES  (placeholder until Phase 2)
          ==================================================================== -->
     <section class="screen" id="screen-files" hidden>
@@ -450,11 +532,12 @@
        exists by the time they run — otherwise getElementById finds nothing.
        Order matters: settings, then auth, then data, then engine, then UI
        (which wires everything together and must go last). -->
-  <script src="js/config.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/store.js"></script>
-  <script src="js/quiz.js"></script>
-  <script src="js/generate.js"></script>
-  <script src="js/ui.js"></script>
+  <script src="js/config.js?v=13"></script>
+  <script src="js/auth.js?v=13"></script>
+  <script src="js/store.js?v=13"></script>
+  <script src="js/notes.js?v=13"></script>
+  <script src="js/quiz.js?v=13"></script>
+  <script src="js/generate.js?v=13"></script>
+  <script src="js/ui.js?v=13"></script>
 </body>
 </html>

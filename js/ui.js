@@ -17,6 +17,7 @@
      ------------------------------------------------------------------------ */
   const SCREENS = {
     landing: "screen-landing",
+    notes: "screen-notes",
     home: "screen-home",
     auth: "screen-auth",
     quiz: "screen-quiz",
@@ -97,6 +98,18 @@
     const scale = FONT_STEPS[currentStep];
     document.documentElement.style.setProperty("--font-scale", String(scale));
 
+    /* Form controls are the one thing --font-scale can't reach on its own.
+       A font-size that depends on a custom property does not re-resolve on an
+       <input> or <textarea> when that property changes — the surrounding text
+       resizes and the control stays frozen at whatever it computed on load.
+       Inheriting from a scaled parent and using em hit the same bug, so the
+       only thing that actually lands is setting it here. data-scales carries
+       each control's base size in rem. */
+    document.querySelectorAll("[data-scales]").forEach(function (el) {
+      const base = parseFloat(el.dataset.scales);
+      if (base) el.style.fontSize = base * scale + "rem";
+    });
+
     // Remember the choice. localStorage persists across reloads and browser
     // restarts, unlike a plain variable which resets every visit.
     try {
@@ -137,9 +150,12 @@
      ------------------------------------------------------------------------ */
   document.querySelectorAll(".menu__item").forEach(function (item) {
     item.addEventListener("click", function () {
+      // Leaving the notes editor mid-edit shouldn't drop what's in it.
+      warnUnsavedNote();
       showScreen(item.dataset.screen);
       window.scrollTo({ top: 0, behavior: "smooth" });
       if (item.dataset.screen === "files") loadFiles();
+      if (item.dataset.screen === "notes") renderNotes();
     });
   });
 
@@ -781,7 +797,11 @@
 
   document.getElementById("account-signout").addEventListener("click", async function () {
     await Auth.signOut();
-    showScreen("home");
+    /* Back to the door, not the chat. signOut() also clears guest mode, so
+       hasChosen() is false again and the landing shows sign-in — which, with
+       no Home button in the menu, is the only way back to it. */
+    showScreen("landing");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
   /* A contact detail only, never a login step — see auth.js's updatePhone
@@ -845,21 +865,29 @@
       ? "Manage how you're signed in."
       : "Sign in to keep your study chats on every device.";
 
-    // --- Landing sign-in ---
-    // The prompt under "Start studying" is only for people who aren't signed
-    // in; leaving it up afterwards would offer something already done.
+    // --- Landing ---
+    /* The landing is the front door now. Anyone who has already answered it —
+       signed in OR a remembered guest — gets shown the way in instead of being
+       asked to choose again. hasChosen() is exactly that predicate.
+       The feature cards are the pitch, so they go too once it has landed. */
+    const ready = Auth.hasChosen();
     const landingSignin = document.getElementById("landing-signin");
-    if (landingSignin) landingSignin.hidden = signedIn;
+    const landingStart = document.getElementById("landing-start");
+    const landingBelow = document.querySelector(".landing__below");
+    if (landingSignin) landingSignin.hidden = ready;
+    if (landingStart) landingStart.hidden = !ready;
+    if (landingBelow) landingBelow.hidden = ready;
 
     // --- Menu ---
-    // Signing in now lives under the "Start studying" button, so the menu item
-    // is only useful once there's an account to manage. Guests still have two
-    // ways in: that landing prompt, and the guest banner's "Create a free
-    // account" — so hiding it here doesn't strand anyone.
+    /* This item used to be hidden while signed out, on the grounds that the
+       landing carried the sign-in prompt instead. The Home button is gone now,
+       so a guest who hides it has NO route to signing in at all. Relabelling
+       keeps one always-present route; the Account screen already renders
+       Create Account / Log In for the signed-out case. */
     const accountMenuItem = document.querySelector('.menu__item[data-screen="account"]');
     if (accountMenuItem) {
-      accountMenuItem.textContent = "Account";
-      accountMenuItem.hidden = !signedIn;
+      accountMenuItem.textContent = signedIn ? "Account" : "Sign in";
+      accountMenuItem.hidden = false;
     }
   }
 
@@ -1069,6 +1097,323 @@
     showScreen("results");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  /* ------------------------------------------------------------------------
+     NOTES
+     A sidebar of classes, each holding its own notes, and one editor pane.
+     Everything here goes through js/notes.js, which is localStorage-backed —
+     so this screen works identically for guests, signed-in users, and someone
+     who hasn't chosen yet. That's why nothing below touches Auth, and why
+     there is no guest banner: a guest's notes really are saved.
+     ------------------------------------------------------------------------ */
+  const notesClasses = document.getElementById("notes-classes");
+  const notesEmpty = document.getElementById("notes-empty");
+  const notesBlocked = document.getElementById("notes-blocked");
+  const notesEditor = document.getElementById("notes-editor");
+  const notesPlaceholder = document.getElementById("notes-placeholder");
+  const noteTitle = document.getElementById("note-title");
+  const noteBody = document.getElementById("note-body");
+  const noteStatus = document.getElementById("note-status");
+
+  let selectedNoteId = null;
+  let noteDirty = false;
+
+  function setNoteStatus(text, isError) {
+    noteStatus.textContent = text;
+    noteStatus.classList.toggle("notes-status--error", Boolean(isError));
+  }
+
+  function markDirty() {
+    if (!selectedNoteId) return;
+    noteDirty = true;
+    setNoteStatus("Unsaved changes", false);
+  }
+
+  /* Explicit Save means edits can be abandoned by navigating away, so ask
+     rather than silently discarding. Called before every screen change. */
+  function warnUnsavedNote() {
+    if (!noteDirty || !selectedNoteId) return;
+    const keep = window.confirm(
+      "This note has unsaved changes. Save it before leaving?"
+    );
+    if (keep) saveNote();
+    else noteDirty = false;
+  }
+
+  function saveNote() {
+    if (!selectedNoteId) return false;
+    const saved = Notes.updateNote(selectedNoteId, {
+      title: noteTitle.value,
+      body: noteBody.value,
+    });
+    if (!saved) {
+      // Quota or blocked storage. Say so and keep the text on screen.
+      setNoteStatus(Notes.lastError() || "Couldn't save this note.", true);
+      return false;
+    }
+    noteDirty = false;
+    setNoteStatus("Saved", false);
+    renderNotes();
+    return true;
+  }
+
+  function openNote(noteId) {
+    const found = Notes.getNote(noteId);
+    if (!found) return;
+    selectedNoteId = noteId;
+    noteDirty = false;
+    noteTitle.value = found.note.title;
+    noteBody.value = found.note.body;
+    setNoteStatus("", false);
+    notesEditor.hidden = false;
+    notesPlaceholder.hidden = true;
+    renderNotes();
+  }
+
+  function closeNote() {
+    selectedNoteId = null;
+    noteDirty = false;
+    notesEditor.hidden = true;
+    notesPlaceholder.hidden = false;
+  }
+
+  // Small square button used for the reorder arrows and the row actions.
+  function iconButton(label, title, onClick, disabled) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "notes-icon-btn";
+    button.textContent = label;
+    button.title = title;
+    button.setAttribute("aria-label", title);
+    if (disabled) button.disabled = true;
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
+      onClick();
+    });
+    return button;
+  }
+
+  function renderNoteItem(note, isFirst, isLast) {
+    const li = document.createElement("li");
+    li.className = "notes-note";
+
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "notes-note__open";
+    // textContent, never innerHTML — a note titled <script> must stay text.
+    open.textContent = note.title || "Untitled note";
+    open.title = note.title || "Untitled note";
+    if (note.id === selectedNoteId) open.setAttribute("aria-current", "true");
+    open.addEventListener("click", function () {
+      if (note.id === selectedNoteId) return;
+      warnUnsavedNote();
+      openNote(note.id);
+    });
+    li.appendChild(open);
+
+    li.appendChild(iconButton("▲", "Move note up", function () {
+      Notes.moveNote(note.id, -1);
+      renderNotes();
+    }, isFirst));
+
+    li.appendChild(iconButton("▼", "Move note down", function () {
+      Notes.moveNote(note.id, 1);
+      renderNotes();
+    }, isLast));
+
+    return li;
+  }
+
+  function renderClassItem(cls, isFirst, isLast) {
+    const li = document.createElement("li");
+    li.className = "notes-class";
+
+    const head = document.createElement("div");
+    head.className = "notes-class__head";
+
+    const collapsed = Boolean(cls.collapsed);
+    head.appendChild(iconButton(collapsed ? "▸" : "▾",
+      collapsed ? "Expand class" : "Collapse class", function () {
+        Notes.setCollapsed(cls.id, !collapsed);
+        renderNotes();
+      }));
+
+    const name = document.createElement("span");
+    name.className = "notes-class__name";
+    name.textContent = cls.name;
+    // Long names ellipsis in a narrow sidebar; keep the full one readable.
+    name.title = cls.name;
+    head.appendChild(name);
+
+    head.appendChild(iconButton("+", "Add a note to " + cls.name, function () {
+      const title = window.prompt("Name this note (for example: Chapter 1)");
+      if (title === null) return;
+      const note = Notes.createNote(cls.id, title);
+      if (!note) {
+        setNoteStatus(Notes.lastError() || "Couldn't create that note.", true);
+        return;
+      }
+      Notes.setCollapsed(cls.id, false);
+      openNote(note.id);
+    }));
+
+    head.appendChild(iconButton("✎", "Rename " + cls.name, function () {
+      const next = window.prompt("Rename this class", cls.name);
+      if (next === null) return;
+      Notes.renameClass(cls.id, next);
+      renderNotes();
+    }));
+
+    head.appendChild(iconButton("✕", "Delete " + cls.name, function () {
+      const count = (cls.notes || []).length;
+      const message = count
+        ? "Delete \"" + cls.name + "\" and its " + count +
+          (count === 1 ? " note?" : " notes?")
+        : "Delete \"" + cls.name + "\"?";
+      if (!window.confirm(message)) return;
+      /* If the open note lived in this class it no longer exists — clear the
+         editor rather than leaving it pointed at a deleted id. */
+      const hadOpen = (cls.notes || []).some(function (n) {
+        return n.id === selectedNoteId;
+      });
+      Notes.deleteClass(cls.id);
+      if (hadOpen) closeNote();
+      renderNotes();
+    }));
+
+    head.appendChild(iconButton("▲", "Move class up", function () {
+      Notes.moveClass(cls.id, -1);
+      renderNotes();
+    }, isFirst));
+
+    head.appendChild(iconButton("▼", "Move class down", function () {
+      Notes.moveClass(cls.id, 1);
+      renderNotes();
+    }, isLast));
+
+    li.appendChild(head);
+
+    if (!collapsed) {
+      const notes = cls.notes || [];
+      if (notes.length) {
+        const ul = document.createElement("ul");
+        ul.className = "notes-notes";
+        notes.forEach(function (note, i) {
+          ul.appendChild(renderNoteItem(note, i === 0, i === notes.length - 1));
+        });
+        li.appendChild(ul);
+      } else {
+        const none = document.createElement("p");
+        none.className = "notes-hint notes-hint--inline";
+        none.textContent = "No notes yet.";
+        li.appendChild(none);
+      }
+    }
+
+    return li;
+  }
+
+  /* Full rebuild on every visit and after every change, same as loadFiles —
+     the list is small and this removes a whole class of stale-DOM bugs. */
+  function renderNotes() {
+    if (!Notes.isAvailable()) {
+      notesBlocked.textContent = Notes.lastError() ||
+        "Your browser is blocking storage, so notes can't be saved here.";
+      notesBlocked.hidden = false;
+      notesClasses.hidden = true;
+      notesEmpty.hidden = true;
+      return;
+    }
+    notesBlocked.hidden = true;
+
+    const classes = Notes.list();
+    notesClasses.innerHTML = "";
+
+    if (!classes.length) {
+      notesEmpty.hidden = false;
+      notesClasses.hidden = true;
+      closeNote();
+      return;
+    }
+
+    notesEmpty.hidden = true;
+    classes.forEach(function (cls, i) {
+      notesClasses.appendChild(
+        renderClassItem(cls, i === 0, i === classes.length - 1)
+      );
+    });
+    notesClasses.hidden = false;
+  }
+
+  function addClass() {
+    const name = window.prompt("Name this class (for example: Biology 101)");
+    if (name === null) return;
+    const cls = Notes.createClass(name);
+    if (!cls && String(name).trim()) {
+      setNoteStatus(Notes.lastError() || "Couldn't create that class.", true);
+    }
+    renderNotes();
+  }
+
+  document.getElementById("notes-add-class").addEventListener("click", addClass);
+  document.getElementById("notes-empty-add").addEventListener("click", addClass);
+
+  noteTitle.addEventListener("input", markDirty);
+  noteBody.addEventListener("input", markDirty);
+
+  document.getElementById("note-save").addEventListener("click", saveNote);
+
+  document.getElementById("note-delete").addEventListener("click", function () {
+    if (!selectedNoteId) return;
+    if (!window.confirm("Delete this note?")) return;
+    Notes.deleteNote(selectedNoteId);
+    closeNote();
+    renderNotes();
+  });
+
+  /* Make a quiz from this note.
+     Drives the same path a user typing into the chat would, rather than
+     calling Generate.buildQuiz directly — so every downstream behaviour
+     (classification, the count picker, saving) stays identical. */
+  document.getElementById("note-quiz").addEventListener("click", function () {
+    if (!selectedNoteId) return;
+
+    // Save first, so the quiz uses what's on screen and edits aren't lost.
+    if (noteDirty && !saveNote()) return;
+
+    const body = noteBody.value.trim();
+    if (body.length < Notes.MIN_QUIZ_CHARS) {
+      setNoteStatus("Add a bit more before making a quiz.", true);
+      return;
+    }
+
+    /* Without both of these, classify() can read a short note as a follow-up
+       and quietly REWRITE the previous quiz instead of using this note.
+       This is the same reset the "Start a new quiz" button performs. */
+    Generate.reset();
+    forceNewNext = true;
+    renderChatContext();
+
+    showScreen("home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    // Title first: it gives the model the subject, which becomes the quiz name.
+    const title = noteTitle.value.trim();
+    chatInput.value = title ? title + "\n\n" + body : body;
+    /* Setting .value from script doesn't fire input, and the composer's
+       autogrow listens for exactly that — without this a long note shows as
+       a one-line sliver. */
+    chatInput.dispatchEvent(new Event("input"));
+    chatForm.requestSubmit();
+  });
+
+  /* Another tab edited the notes. Re-read before this tab's next write, so a
+     class created over there isn't clobbered by this tab's stale copy. */
+  window.addEventListener("storage", function (event) {
+    if (event.key !== "smartstudy.notes.v1") return;
+    Notes.reload();
+    if (!document.getElementById("screen-notes").hidden) renderNotes();
+  });
 
   window.showScreen = showScreen;
 
