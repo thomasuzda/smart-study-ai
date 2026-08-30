@@ -193,6 +193,7 @@ small,
 
 main {
   margin-top: var(--header-height);
+  perspective: 2000px;
 }
 
 .screen {
@@ -202,52 +203,45 @@ main {
 
 .screen:not([hidden]) {
   display: flex;
-  animation: pageFlip 0.95s cubic-bezier(0.42, 0, 0.58, 1);
-  perspective: 1500px;
+  animation: pageFlip 1s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform-origin: left center;
 }
 
 @keyframes pageFlip {
   0% {
-    /* New page coming from behind, edge-on and starting to rotate */
+    /* Page starts nearly invisible, edge-on from right */
     opacity: 0;
-    transform: rotateX(0deg) rotateY(-95deg);
-    filter: brightness(0.6);
+    transform: rotateY(90deg);
+    filter: brightness(0.3);
   }
-  15% {
-    /* Page edge starts coming into view, rotating over */
-    opacity: 0.4;
-    transform: rotateX(-8deg) rotateY(-75deg);
-    filter: brightness(0.7);
+  20% {
+    /* Page edge becoming visible, starting flip */
+    opacity: 0.25;
+    transform: rotateY(70deg);
+    filter: brightness(0.45);
   }
-  30% {
-    /* Page swinging over top, mid-arc */
-    opacity: 0.7;
-    transform: rotateX(-12deg) rotateY(-45deg);
-    filter: brightness(0.8);
+  40% {
+    /* Page swinging into view, mid-flip */
+    opacity: 0.65;
+    transform: rotateY(35deg);
+    filter: brightness(0.65);
   }
-  50% {
-    /* Page at peak of flip, showing back side (shadow) */
+  60% {
+    /* Page at the peak - edge-on center, darkest point (back of page visible) */
     opacity: 0.85;
-    transform: rotateX(-15deg) rotateY(0deg);
-    filter: brightness(0.75);
+    transform: rotateY(0deg);
+    filter: brightness(0.5);
   }
-  70% {
-    /* Page landing, rotating down on other side */
-    opacity: 0.95;
-    transform: rotateX(-10deg) rotateY(25deg);
-    filter: brightness(0.9);
-  }
-  85% {
-    /* Page almost fully settled */
-    opacity: 1;
-    transform: rotateX(-3deg) rotateY(5deg);
-    filter: brightness(0.98);
+  80% {
+    /* Page almost fully landed, becoming bright again */
+    opacity: 0.98;
+    transform: rotateY(-5deg);
+    filter: brightness(0.95);
   }
   100% {
-    /* Page fully settled and visible */
+    /* Page fully settled, completely visible and flat */
     opacity: 1;
-    transform: rotateX(0deg) rotateY(0deg);
+    transform: rotateY(0deg);
     filter: brightness(1);
   }
 }
